@@ -1,0 +1,3 @@
+[submodule "locomotive-engine"]
+	path = locomotive-engine
+	url = https://github.com/Vizaxo/locomotive-engine
