@@ -2,9 +2,12 @@
 
 #include <types/Types.h>
 #include <core/Assert.h>
+#include <core/Log.h>
 
 #define RW_READ 1
 #define RW_WRITE 0
+
+static inline Log::Channel cpuChan = {"CPU"};
 
 struct Memory {
 	static constexpr u32 MEM_MAX = 0xffff;
@@ -150,6 +153,7 @@ struct cpu6502 {
 		bool end_cycle = false;
 		while (!end_cycle) {
 			uop u = pop_uop();
+			LOG(Log::INFO, cpuChan, "uOP execute: %d (data %d)", u.uop_id, u.data);
 			switch (u.uop_id) {
 			case READ_MEM:
 				pinout.a = u.data;
@@ -163,14 +167,17 @@ struct cpu6502 {
 				WRITE_HIGH_BYTE(pc, pinout.d);
 				break;
 			case FETCH:
+				LOG(Log::INFO, cpuChan, "Instruction fetch: %x", pc);
 				fetch_pc_byte();
 				queue_uop(DECODE);
 				break;
 			case DECODE:
 				decode(pinout.d);
+				LOG(Log::INFO, cpuChan, "Instruction decode: %x", pinout.d);
 				queue_uop(FETCH);
 				break;
 			case WRITE_A:
+				LOG(Log::INFO, cpuChan, "Wrote %d to register A", pinout.d);
 				a = pinout.d;
 				break;
 			default:

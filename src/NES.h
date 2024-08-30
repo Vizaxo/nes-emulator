@@ -1,13 +1,18 @@
 #pragma once
 
+#include <core/Log.h>
+
 #include "6502.h"
+
+static inline Log::Channel nesChan = { "NES" };
 
 struct NES {
 	cpu6502 cpu;
 	Memory mem;
 
-	void init() {
+	inline void init() {
 		cpu.pinout.resN = false;
+		LOG(Log::INFO, nesChan, "Init");
 		for (int i = 0; i < 20; i++)
 			cpu.tick();
 		mem.debug_setmem(0xfffc, 0x00);
@@ -16,7 +21,8 @@ struct NES {
 		mem.debug_setmem(0x0101, 42);
 	}
 
-	void tick() {
+	inline void tick() {
+		LOG(Log::INFO, nesChan, "NES tick");
 		cpu.pinout.resN = true;
 		cpu.tick();
 
