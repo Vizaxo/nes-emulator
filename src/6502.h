@@ -24,6 +24,11 @@ struct Memory {
 		u8 rw : 1; // read/write. If high CPU is reading
 	} pinout;
 
+	void debug_set_all_mem(u8 d) {
+		for (int i = 0; i <= MEM_MAX; ++i)
+			memory[i] = d;
+	}
+
 	void debug_setmem(u16 a, u8 d) {
 		memory[a] = d;
 	}
@@ -128,6 +133,12 @@ struct cpu6502 {
 		case 0xA9: // LDA #oper
 			fetch_pc_byte();
 			queue_uop(WRITE_A);
+			break;
+		case 0xEA: // NOP
+			break;
+		default:
+			ASSERT(false, "Unimplemented opcode %x", opcode);
+			break;
 		}
 	}
 	
@@ -172,8 +183,8 @@ struct cpu6502 {
 				queue_uop(DECODE);
 				break;
 			case DECODE:
-				decode(pinout.d);
 				LOG(Log::INFO, cpuChan, "Instruction decode: %x", pinout.d);
+				decode(pinout.d);
 				queue_uop(FETCH);
 				break;
 			case WRITE_A:
