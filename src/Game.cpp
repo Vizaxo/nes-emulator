@@ -9,7 +9,11 @@ struct App : Application {
 	~App() override {}
 	Scene scene;
 
-	void init(RefPtr<Renderer> renderer, PAL::WindowHandle* h) override { LOG(Log::INFO, appChan, "Initialized"); }
+	void init(RefPtr<Renderer> renderer, PAL::WindowHandle h) override {
+		LOG(Log::INFO, appChan, "Initialized");
+		scene.camera.cam2d = { {0.f,0.f}, 1.f, h };
+		scene.camera.type = Camera::Cam2D;
+	}
 	void tick(float deltaTime) override {}
 	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override {}
 	void cleanup() override {}
