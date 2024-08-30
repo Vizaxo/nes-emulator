@@ -23,5 +23,8 @@
     <ClInclude Include="src\6502.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\NES.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
