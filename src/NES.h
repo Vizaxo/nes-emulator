@@ -11,10 +11,13 @@ struct NES {
 	Memory mem;
 
 	inline void init() {
+		cpu.init();
+
 		cpu.pinout.resN = false;
 		LOG(Log::INFO, nesChan, "Init");
 		for (int i = 0; i < 20; i++)
 			cpu.tick();
+
 		mem.debug_set_all_mem(0xea);
 		mem.debug_setmem(0xfffc, 0x00);
 		mem.debug_setmem(0xfffd, 0x01);

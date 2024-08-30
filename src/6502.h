@@ -96,6 +96,64 @@ struct cpu6502 {
 		u16 data;
 	};
 
+	struct op {
+		enum op_type_t {
+			LDA,
+			NOP,
+			NOT_IMPLEMENTED,
+		} op_type;
+		enum addr_mode_t {
+			A,
+			abs,
+			absX,
+			absY,
+			imm,
+			impl,
+			ind,
+			Xind,
+			indY,
+			rel,
+			zpg,
+			zpgX,
+			zpgY,
+		} addr_mode;
+	};
+	static constexpr u16 NUM_OPCODES = 0x100;
+	op opcode_table[NUM_OPCODES];
+
+	enum pattern_type_t {
+		pattern8,
+	} pattern_type;
+	struct pattern_op_def {
+		op::op_type_t op_type;
+		u8 base;
+		pattern_type_t pattern_type;
+	};
+
+	Array<pattern_op_def> pattern_ops = {
+		{op::LDA, 0xA1, pattern8},
+	};
+	op::addr_mode_t pattern_8_addr_modes[8] = {
+		op::Xind, op::zpg, op::imm, op::abs,
+		op::indY, op::zpgX, op::absY, op::absX,
+	};
+
+	void build_opcode_table() {
+		for (int i = 0; i < NUM_OPCODES; ++i)
+			opcode_table[i] = {op::NOT_IMPLEMENTED, op::A};
+
+		for (pattern_op_def pattern_op : pattern_ops) {
+			switch (pattern_op.pattern_type) {
+			case pattern8:
+				for (int i = 0; i < 8; ++i)
+					opcode_table[pattern_op.base + i * 4] = { pattern_op.op_type, pattern_8_addr_modes[i] };
+				break;
+			}
+		}
+
+		opcode_table[0xEA] = {op::NOP, op::impl};
+	}
+
 	static constexpr uint UOP_QUEUE_NUM = 16;
 	uop uops[UOP_QUEUE_NUM];
 	uint uop_num;
@@ -129,17 +187,32 @@ struct cpu6502 {
 	}
 
 	void decode(u8 opcode) {
-		switch (opcode) {
-		case 0xA9: // LDA #oper
+		op instruction = opcode_table[opcode];
+
+		switch (instruction.addr_mode) {
+		case op::imm:
 			fetch_pc_byte();
-			queue_uop(WRITE_A);
 			break;
-		case 0xEA: // NOP
+		case op::impl:
 			break;
 		default:
-			ASSERT(false, "Unimplemented opcode %x", opcode);
+			ASSERT(false, "Unimplemented addressing mode %d (opcode %x)", instruction.addr_mode, opcode);
+		}
+
+		switch(instruction.op_type) {
+		case op::LDA:
+			queue_uop(WRITE_A);
+			break;
+		case op::NOP:
+			break;
+		default:
+			ASSERT(false, "Unimplemented opcode %d (opcode %x)", instruction.op_type, opcode);
 			break;
 		}
+	}
+
+	void init() {
+		build_opcode_table();
 	}
 	
 	void tick() {
