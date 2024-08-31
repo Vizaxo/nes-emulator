@@ -69,8 +69,10 @@ struct App : Application {
 	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override
 	{
 		ImGui::Begin("Debugger");
-		if (ImGui::Button("Continue"))
-			single_step_debugging = false;
+		if (ImGui::Button(single_step_debugging ? "Continue" : "Pause"))
+			single_step_debugging = !single_step_debugging;
+
+		ImGui::SameLine();
 		if (ImGui::Button("Single step"))
 			single_step(); //TODO: probably shouldn't be in the render function.
 
