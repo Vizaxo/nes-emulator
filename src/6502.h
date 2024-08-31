@@ -147,8 +147,26 @@ struct cpu6502 {
 			ROR,
 			STX,
 			LDX,
+			STY,
+			LDY,
 			DEC,
 			INC,
+			BIT,
+			JMP,
+			CPY,
+			CPX,
+			BPL,
+			BMI,
+			BVC,
+			BVS,
+			BCC,
+			BCS,
+			BNE,
+			BEQ,
+			BRK,
+			JSR,
+			RTI,
+			RTS,
 			NOP,
 			NOT_IMPLEMENTED,
 		} op_type;
@@ -160,6 +178,7 @@ struct cpu6502 {
 			imm,
 			impl,
 			ind,
+			ind16,
 			Xind,
 			indY,
 			rel,
@@ -226,6 +245,7 @@ struct cpu6502 {
 				break;
 			}
 		}
+		opcode_table[0xA2] = {op::LDX, op::imm}; // Technically part of group two, but easier to implement on its own
 
 		// Unimplementing pattern instructions
 		ASSERT(opcode_table[0x89].op_type == op::STA, "Expected 0x89=STA imm");
@@ -236,8 +256,44 @@ struct cpu6502 {
 		opcode_table[0xCA] = { op::NOT_IMPLEMENTED }; // DEC A
 		opcode_table[0xEA] = { op::NOT_IMPLEMENTED }; // INC A
 
-		// Individual instructions
-		opcode_table[0xA2] = {op::LDX, op::imm}; // Technically part of group two, but easier to implement on its own
+		// Group three
+
+		opcode_table[0x24] = {op::BIT, op::zpg};
+		opcode_table[0x2c] = {op::BIT, op::abs};
+		opcode_table[0x4c] = {op::JMP, op::abs};
+		opcode_table[0x6c] = {op::JMP, op::ind};
+		opcode_table[0x84] = {op::STY, op::zpg};
+		opcode_table[0x8C] = {op::STY, op::abs};
+		opcode_table[0x94] = {op::STY, op::zpgX};
+
+		opcode_table[0xA0] = {op::LDY, op::imm};
+		opcode_table[0xA4] = {op::LDY, op::zpg};
+		opcode_table[0xAC] = {op::LDY, op::abs};
+		opcode_table[0xB4] = {op::LDY, op::zpgX};
+		opcode_table[0xBC] = {op::LDY, op::absX};
+
+		opcode_table[0xC0] = {op::CPY, op::imm};
+		opcode_table[0xC4] = {op::CPY, op::zpg};
+		opcode_table[0xCC] = {op::CPY, op::abs};
+
+		opcode_table[0xE0] = {op::CPX, op::imm};
+		opcode_table[0xE4] = {op::CPX, op::zpg};
+		opcode_table[0xEC] = {op::CPX, op::abs};
+
+		opcode_table[0x10] = {op::BPL, op::rel};
+		opcode_table[0x30] = {op::BMI, op::rel};
+		opcode_table[0x50] = {op::BVC, op::rel};
+		opcode_table[0x70] = {op::BVS, op::rel};
+		opcode_table[0x90] = {op::BCC, op::rel};
+		opcode_table[0xB0] = {op::BCS, op::rel};
+		opcode_table[0xD0] = {op::BNE, op::rel};
+		opcode_table[0xF0] = {op::BEQ, op::rel};
+
+		opcode_table[0x00] = {op::BRK, op::impl};
+		opcode_table[0x20] = {op::JSR, op::abs};
+		opcode_table[0x40] = {op::RTI, op::impl};
+		opcode_table[0x40] = {op::RTS, op::impl};
+
 		opcode_table[0xEA] = {op::NOP, op::impl};
 	}
 
