@@ -226,10 +226,18 @@ struct cpu6502 {
 				break;
 			}
 		}
+
+		// Unimplementing pattern instructions
 		ASSERT(opcode_table[0x89].op_type == op::STA, "Expected 0x89=STA imm");
 		ASSERT(opcode_table[0x89].addr_mode == op::imm, "Expected 0x89=STA imm");
-		opcode_table[0x89] = { op::NOT_IMPLEMENTED };
+		opcode_table[0x89] = { op::NOT_IMPLEMENTED }; // STA,imm
+		// opcode_table[0x8A] = { op::NOT_IMPLEMENTED }; // STX,A -> TXA
+		// opcode_table[0xAA] = { op::NOT_IMPLEMENTED }; // LDX,A -> TAX
+		opcode_table[0xCA] = { op::NOT_IMPLEMENTED }; // DEC A
+		opcode_table[0xEA] = { op::NOT_IMPLEMENTED }; // INC A
 
+		// Individual instructions
+		opcode_table[0xA2] = {op::LDX, op::imm}; // Technically part of group two, but easier to implement on its own
 		opcode_table[0xEA] = {op::NOP, op::impl};
 	}
 
