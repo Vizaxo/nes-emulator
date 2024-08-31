@@ -167,6 +167,27 @@ struct cpu6502 {
 			JSR,
 			RTI,
 			RTS,
+			PHP,
+			PLP,
+			PHA,
+			PLA,
+			DEY,
+			TAY,
+			INY,
+			INX,
+			CLC,
+			SEC,
+			CLI,
+			SEI,
+			TYA,
+			CLV,
+			CLD,
+			SED,
+			TXA,
+			TXS,
+			TAX,
+			TSX,
+			DEX,
 			NOP,
 			NOT_IMPLEMENTED,
 		} op_type;
@@ -294,6 +315,29 @@ struct cpu6502 {
 		opcode_table[0x40] = {op::RTI, op::impl};
 		opcode_table[0x40] = {op::RTS, op::impl};
 
+
+		// Rest of single-byte instructions
+		opcode_table[0x08] = {op::PHP, op::impl};
+		opcode_table[0x28] = {op::PLP, op::impl};
+		opcode_table[0x48] = {op::PHA, op::impl};
+		opcode_table[0x68] = {op::PLA, op::impl};
+		opcode_table[0x88] = {op::DEY, op::impl};
+		opcode_table[0xA8] = {op::TAY, op::impl};
+		opcode_table[0xC8] = {op::INY, op::impl};
+		opcode_table[0xE8] = {op::INX, op::impl};
+		opcode_table[0x18] = {op::CLC, op::impl};
+		opcode_table[0x38] = {op::SEC, op::impl};
+		opcode_table[0x58] = {op::CLI, op::impl};
+		opcode_table[0x78] = {op::SEI, op::impl};
+		opcode_table[0x98] = {op::TYA, op::impl};
+		opcode_table[0xB8] = {op::CLV, op::impl};
+		opcode_table[0xD8] = {op::CLD, op::impl};
+		opcode_table[0xF8] = {op::SED, op::impl};
+		opcode_table[0x8A] = {op::TXA, op::impl};
+		opcode_table[0x9A] = {op::TXS, op::impl};
+		opcode_table[0xAA] = {op::TAX, op::impl};
+		opcode_table[0xBA] = {op::TSX, op::impl};
+		opcode_table[0xCA] = {op::DEX, op::impl};
 		opcode_table[0xEA] = {op::NOP, op::impl};
 	}
 
