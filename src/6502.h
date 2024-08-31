@@ -55,8 +55,6 @@ struct cpu6502 {
 
 	bool fetching = false;
 	u16 fetch_addr = 0x0000;
-	i32 debug_break_addr = 0x0400;
-	bool debug_single_stepping = false;
 
 	u8 a;
 	u8 x;
@@ -1091,17 +1089,6 @@ struct cpu6502 {
 				break;
 			case FETCH:
 				ASSERT(u.target == mem, "FETCH must fetch from mem")
-				if (pc == debug_break_addr && !debug_single_stepping) {
-					LOG(Log::INFO, cpuChan, "Breakpoint $%04x hit", debug_break_addr);
-					print_instruction(pc, debug_mem);
-					debug_single_stepping = true;
-				}
-
-				if (debug_single_stepping) {
-					end_cycle = true;
-					break;
-				}
-
 				print_instruction(pc, debug_mem);
 
 				fetching = true;

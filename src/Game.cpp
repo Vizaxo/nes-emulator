@@ -39,27 +39,40 @@ struct App : Application {
 		}
 	}
 
+	void single_step() {
+		// Execute until the next instruction is fetched
+		do {
+			nes.tick();
+		} while (!nes.cpu.fetching);
+
+		executing_addr = nes.cpu.fetch_addr;
+		if (disassembly[nes.cpu.fetch_addr].breakpoint) {
+			single_step_debugging = true;
+		}
+	}
+
 	void tick(float deltaTime) override {
 		if (single_step_debugging && !first_tick)
 			return;
 
-		first_tick = false;
-		for (int i = 0; i < 100; ++i) {
-			nes.tick();
-			executing_addr = nes.cpu.fetch_addr;
-			if (nes.cpu.fetching) {
-				if (disassembly[nes.cpu.fetch_addr].breakpoint) {
-					single_step_debugging = true;
-				}
-			}
+		static constexpr int TICKS_PER_FRAME = 1;
+		for (int i = 0; i < TICKS_PER_FRAME; ++i) {
+			single_step();
 		}
-		build_disas_table();
+
+		// todo: figure out when we need to rebuild this
+		if (first_tick)
+			build_disas_table();
+		first_tick = false;
 	}
 
 	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override
 	{
 		ImGui::Begin("Debugger");
-		ImGui::SliderInt("Break addr", &nes.cpu.debug_break_addr, -1, 0xffff, "%04x");
+		if (ImGui::Button("Continue"))
+			single_step_debugging = false;
+		if (ImGui::Button("Single step"))
+			single_step(); //TODO: probably shouldn't be in the render function.
 
 		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
 			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable
