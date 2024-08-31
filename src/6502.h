@@ -199,7 +199,6 @@ struct cpu6502 {
 			imm,
 			impl,
 			ind,
-			ind16,
 			Xind,
 			indY,
 			rel,
