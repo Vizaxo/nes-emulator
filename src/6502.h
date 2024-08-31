@@ -1155,14 +1155,15 @@ struct cpu6502 {
 			case BRANCH_FLAG_SET:
 				if (get_flag((flag)u.data)) {
 					i8 offset = get_val(u.target);
-					pc = (i16)pc + offset;
+					// TODO: how does wrapping work?
+					pc = (i32)pc + offset;
 					// TODO: extra cycle for page transition
 				}
 				break;
 			case BRANCH_FLAG_UNSET:
 				if (!get_flag((flag)u.data)) {
 					i8 offset = get_val(u.target);
-					pc = (i16)pc + offset;
+					pc = (i32)pc + offset;
 					// TODO: extra cycle for page transition
 				}
 				break;
