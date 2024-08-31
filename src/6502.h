@@ -127,6 +127,7 @@ struct cpu6502 {
 		A,
 		X,
 		Y,
+		S,
 		pc16,
 		pcl,
 		pch,
@@ -441,6 +442,7 @@ struct cpu6502 {
 		case A: return &a;
 		case X: return &x;
 		case Y: return &y;
+		case S: return &s;
 		case pch: return ((u8*)&pc)+1;
 		case pcl: return (u8*)&pc; // Assuming little endian
 		case tmp_high: return ((u8*)&tmp_internal)+1;
@@ -634,6 +636,24 @@ struct cpu6502 {
 		case op::INC:
 			queue_uop(INC, tmp, mem);
 			queue_uop(MOV, mem, tmp);
+			break;
+		case op::TAY:
+			queue_uop(MOV, Y, A);
+			break;
+		case op::TYA:
+			queue_uop(MOV, A, Y);
+			break;
+		case op::TXA:
+			queue_uop(MOV, A, X);
+			break;
+		case op::TXS:
+			queue_uop(MOV, S, X);
+			break;
+		case op::TAX:
+			queue_uop(MOV, X, A);
+			break;
+		case op::TSX:
+			queue_uop(MOV, X, S);
 			break;
 		case op::NOP:
 			break;
