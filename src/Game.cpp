@@ -96,10 +96,12 @@ struct App : Application {
 
 			for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++) {
 				if (addr <= Memory::MEM_MAX) {
+					ImGui::PushID(addr);
 					disas_entry& ret = disassembly[addr];
 					ImGui::TableNextRow();
 					ImGui::TableSetColumnIndex(0);
-					ImGui::TextUnformatted(ret.breakpoint ? "o\t" : " \t");
+					ImGui::Checkbox("##break", &disassembly[addr].breakpoint);
+
 					if (addr == executing_addr) {
 						ImGui::TableSetColumnIndex(1);
 						ImGui::TextUnformatted("->");
@@ -107,6 +109,7 @@ struct App : Application {
 					ImGui::TableSetColumnIndex(2);
 					ImGui::TextUnformatted(ret.disas.s);
 					addr += ret.ins_len;
+					ImGui::PopID();
 				}
 			}
 		}
