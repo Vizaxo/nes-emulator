@@ -611,6 +611,18 @@ struct cpu6502 {
 		case op::LDA:
 			queue_uop(MOV, A, mem);
 			break;
+		case op::STX:
+			queue_uop(MOV, mem, X);
+			break;
+		case op::LDX:
+			queue_uop(MOV, X, mem);
+			break;
+		case op::STY:
+			queue_uop(MOV, mem, Y);
+			break;
+		case op::LDY:
+			queue_uop(MOV, Y, mem);
+			break;
 		case op::CMP:
 			queue_uop(CMP, A, mem);
 			break;
@@ -628,12 +640,6 @@ struct cpu6502 {
 			break;
 		case op::ROR:
 			queue_uop(ROR, A, mem);
-			break;
-		case op::STX:
-			queue_uop(MOV, mem, X);
-			break;
-		case op::LDX:
-			queue_uop(MOV, X, mem);
 			break;
 		case op::DEC:
 			queue_uop(DEC, tmp, mem);
