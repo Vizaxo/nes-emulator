@@ -178,6 +178,9 @@ struct cpu6502 {
 				break;
 			}
 		}
+		ASSERT(opcode_table[0x89].op_type == op::STA, "Expected 0x89=STA imm");
+		ASSERT(opcode_table[0x89].addr_mode == op::imm, "Expected 0x89=STA imm");
+		opcode_table[0x89] = { op::NOT_IMPLEMENTED };
 
 		opcode_table[0xEA] = {op::NOP, op::impl};
 	}
