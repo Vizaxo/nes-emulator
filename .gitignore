@@ -374,3 +374,5 @@ imgui.ini
 
 # Renderdoc captures
 *.rdc
+
+roms*
