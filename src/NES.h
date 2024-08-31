@@ -14,6 +14,7 @@ struct NES {
 
 	inline void init() {
 		cpu.init();
+		cpu.debug_mem = &mem;
 
 		cpu.pinout.resN = false;
 		LOG(Log::INFO, nesChan, "Init");

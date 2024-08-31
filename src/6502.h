@@ -50,6 +50,8 @@ struct Memory {
 #define WRITE_HIGH_BYTE(reg, val) do { reg = (reg & 0x00ff) | ((u16)(val & 0x00ff) << 8); } while(0);
 
 struct cpu6502 {
+	Memory* debug_mem; // Should only be used for debug access
+
 	u8 a;
 	u8 x;
 	u8 y;
@@ -466,92 +468,199 @@ struct cpu6502 {
 		queue_uop(INC16, pc16);
 	}
 
+	u8 debug_get_mem(u16 addr) {
+		ASSERT(debug_mem, "mem was nullptr");
+		return (*debug_mem)[addr];
+	}
+
 	str print_op_type(op::op_type_t op_type) {
 		switch (op_type) {
-		case op::ORA: return "ORA";
-		case op::AND: return "AND";
-		case op::EOR: return "EOR";
-		case op::ADC: return "ADC";
-		case op::STA: return "STA";
-		case op::LDA: return "LDA";
-		case op::CMP: return "CMP";
-		case op::SBC: return "SBC";
-		case op::ASL: return "ASL";
-		case op::ROL: return "ROL";
-		case op::LSR: return "LSR";
-		case op::ROR: return "ROR";
-		case op::STX: return "STX";
-		case op::LDX: return "LDX";
-		case op::STY: return "STY";
-		case op::LDY: return "LDY";
-		case op::DEC: return "DEC";
-		case op::INC: return "INC";
-		case op::BIT: return "BIT";
-		case op::JMP: return "JMP";
-		case op::CPY: return "CPY";
-		case op::CPX: return "CPX";
-		case op::BPL: return "BPL";
-		case op::BMI: return "BMI";
-		case op::BVC: return "BVC";
-		case op::BVS: return "BVS";
-		case op::BCC: return "BCC";
-		case op::BCS: return "BCS";
-		case op::BNE: return "BNE";
-		case op::BEQ: return "BEQ";
-		case op::BRK: return "BRK";
-		case op::JSR: return "JSR";
-		case op::RTI: return "RTI";
-		case op::RTS: return "RTS";
-		case op::PHP: return "PHP";
-		case op::PLP: return "PLP";
-		case op::PHA: return "PHA";
-		case op::PLA: return "PLA";
-		case op::DEY: return "DEY";
-		case op::TAY: return "TAY";
-		case op::INY: return "INY";
-		case op::INX: return "INX";
-		case op::CLC: return "CLC";
-		case op::SEC: return "SEC";
-		case op::CLI: return "CLI";
-		case op::SEI: return "SEI";
-		case op::TYA: return "TYA";
-		case op::CLV: return "CLV";
-		case op::CLD: return "CLD";
-		case op::SED: return "SED";
-		case op::TXA: return "TXA";
-		case op::TXS: return "TXS";
-		case op::TAX: return "TAX";
-		case op::TSX: return "TSX";
-		case op::DEX: return "DEX";
-		case op::NOP: return "NOP";
-		case op::NOT_IMPLEMENTED: return "NOT_IMPLEMENTED";
-		default: ASSERT(false, "Unimplemented print for op type %d", op_type);
+		case op::ORA: return "ora";
+		case op::AND: return "and";
+		case op::EOR: return "eor";
+		case op::ADC: return "adc";
+		case op::STA: return "sta";
+		case op::LDA: return "lda";
+		case op::CMP: return "cmp";
+		case op::SBC: return "sbc";
+		case op::ASL: return "asl";
+		case op::ROL: return "rol";
+		case op::LSR: return "lsr";
+		case op::ROR: return "ror";
+		case op::STX: return "stx";
+		case op::LDX: return "ldx";
+		case op::STY: return "sty";
+		case op::LDY: return "ldy";
+		case op::DEC: return "dec";
+		case op::INC: return "inc";
+		case op::BIT: return "bit";
+		case op::JMP: return "jmp";
+		case op::CPY: return "cpy";
+		case op::CPX: return "cpx";
+		case op::BPL: return "bpl";
+		case op::BMI: return "bmi";
+		case op::BVC: return "bvc";
+		case op::BVS: return "bvs";
+		case op::BCC: return "bcc";
+		case op::BCS: return "bcs";
+		case op::BNE: return "bne";
+		case op::BEQ: return "beq";
+		case op::BRK: return "brk";
+		case op::JSR: return "jsr";
+		case op::RTI: return "rti";
+		case op::RTS: return "rts";
+		case op::PHP: return "php";
+		case op::PLP: return "plp";
+		case op::PHA: return "pha";
+		case op::PLA: return "pla";
+		case op::DEY: return "dey";
+		case op::TAY: return "tay";
+		case op::INY: return "iny";
+		case op::INX: return "inx";
+		case op::CLC: return "clc";
+		case op::SEC: return "sec";
+		case op::CLI: return "cli";
+		case op::SEI: return "sei";
+		case op::TYA: return "tya";
+		case op::CLV: return "clv";
+		case op::CLD: return "cld";
+		case op::SED: return "sed";
+		case op::TXA: return "txa";
+		case op::TXS: return "txs";
+		case op::TAX: return "tax";
+		case op::TSX: return "tsx";
+		case op::DEX: return "dex";
+		case op::NOP: return "nop";
+		case op::NOT_IMPLEMENTED:
+		default:
+			ASSERT(false, "Unimplemented print for op type %d", op_type);
+			return "NOT_IMPLEMENTED addr mode";
 		}
 	}
 
-	str print_addr_mode(op::addr_mode_t addr_mode) {
-		switch(addr_mode) {
-		case op::A: return "A";
-		case op::abs: return "abs";
-		case op::absX: return "absX";
-		case op::absY: return "absY";
-		case op::imm: return "imm";
-		case op::impl: return "impl";
-		case op::ind: return "ind";
-		case op::Xind: return "Xind";
-		case op::indY: return "indY";
-		case op::rel: return "rel";
-		case op::zpg: return "zpg";
-		case op::zpgX: return "zpgX";
-		case op::zpgY: return "zpgY";
-		case op::NOT_IMPLEMENTED_ADDR: return "NOT_IMPLEMENTED_ADDR";
-		default: ASSERT(false, "Unimplemented print for addr mode %d", addr_mode);
+	void print_instruction(u8 opcode, op instruction) {
+		str addr_mode;
+		u8 ins_length = 1;
+		u8 ins_bytes[3];
+		ins_bytes[0] = opcode;
+		ins_bytes[1] = debug_get_mem(pc);
+		ins_bytes[2] = debug_get_mem(pc+1);
+		switch(instruction.addr_mode) {
+		case op::A:
+			addr_mode = "A";
+			break;
+		case op::abs:
+		{
+			u8 low = ins_bytes[1];
+			u8 high = ins_bytes[2];
+			ins_length += 2;
+			addr_mode = str::strf("$%02x%02x", high, low);
+			break;
+		}
+		case op::absX:
+		{
+			u8 low = ins_bytes[1];
+			u8 high = ins_bytes[2];
+			ins_length += 2;
+			addr_mode = str::strf("$%02x%02x,X", high, low);
+			break;
+		}
+		case op::absY:
+		{
+			u8 low = ins_bytes[1];
+			u8 high = ins_bytes[2];
+			ins_length += 2;
+			addr_mode = str::strf("$%02x%02x,Y", high, low);
+			break;
+		}
+		case op::imm:
+		{
+			u8 oper = ins_bytes[1];
+			ins_length += 1;
+			addr_mode = str::strf("#%02x", oper);
+			break;
+		}
+		case op::impl:
+		{
+			addr_mode = "";
+			break;
+		}
+		case op::ind:
+		{
+			u8 low = ins_bytes[1];
+			u8 high = ins_bytes[2];
+			ins_length += 2;
+			addr_mode = str::strf("($%02x%02x)", high, low);
+			break;
+		}
+		case op::Xind:
+		{
+			u8 low = ins_bytes[1];
+			ins_length += 1;
+			addr_mode = str::strf("($%02x,X)", low);
+			break;
+		}
+		case op::indY:
+		{
+			u8 low = ins_bytes[1];
+			ins_length += 1;
+			addr_mode = str::strf("($%02x),Y", low);
+			break;
+		}
+		case op::rel:
+		{
+			i8 low = *(i8*)&ins_bytes[1];
+			ins_length += 1;
+			addr_mode = str::strf("$%+d ($%04x)", low, (i32)pc+1+low);
+			break;
+		}
+		case op::zpg:
+		{
+			u8 low = ins_bytes[1];
+			ins_length += 1;
+			addr_mode = str::strf("$%02x", low);
+			break;
+		}
+		case op::zpgX:
+		{
+			u8 low = ins_bytes[1];
+			ins_length += 1;
+			addr_mode = str::strf("$%02x,X", low);
+			break;
+		}
+		case op::zpgY:
+		{
+			u8 low = ins_bytes[1];
+			ins_length += 1;
+			addr_mode = str::strf("$%02x,Y", low);
+			break;
+		}
+		case op::NOT_IMPLEMENTED_ADDR:
+		default:
+			ASSERT(false, "Unimplemented print for addr mode %d", addr_mode);
+			addr_mode = "unimplemented addr mode";
+			break;
+		}
+
+		switch (ins_length) {
+		case 1:
+			LOG(Log::INFO, cpuChan, "%04x:\t%02x\t%s %s", pc - 1, opcode, print_op_type(instruction.op_type).s, addr_mode.s);
+			break;
+		case 2:
+			LOG(Log::INFO, cpuChan, "%04x:\t%02x%02x\t%s %s", pc - 1, opcode, debug_get_mem(pc), print_op_type(instruction.op_type).s, addr_mode.s);
+			break;
+		case 3:
+			LOG(Log::INFO, cpuChan, "%04x:\t%02x%02x%02x\t%s %s", pc - 1, opcode, debug_get_mem(pc), debug_get_mem(pc+1), print_op_type(instruction.op_type).s, addr_mode.s);
+			break;
+		default:
+			ASSERT(false, "Unimplemented print for instruction length %d", ins_length);
+			break;
 		}
 	}
 
 	void decode(u8 opcode) {
 		op instruction = opcode_table[opcode];
-		LOG(Log::INFO, cpuChan, "%04x:\t%02x\t%s %s", pc-1, opcode, print_op_type(instruction.op_type).s, print_addr_mode(instruction.addr_mode).s);
+		print_instruction(opcode, instruction);
 
 		// Handle jumps first because addressing modes behave slightly differently
 		switch (instruction.op_type) {
