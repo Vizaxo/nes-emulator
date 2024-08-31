@@ -66,8 +66,7 @@ struct App : Application {
 		first_tick = false;
 	}
 
-	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override
-	{
+	void draw_debugger() {
 		ImGui::Begin("Debugger");
 		if (ImGui::Button(single_step_debugging ? "Continue" : "Pause"))
 			single_step_debugging = !single_step_debugging;
@@ -154,7 +153,9 @@ struct App : Application {
 		ImGui::EndTable();
 		ImGui::End();
 
+	}
 
+	void draw_registers() {
 		ImGui::Begin("CPU State");
 		ImGui::BeginTable("Registers", 3);
 		ImGui::TableSetupColumn("Reg");
@@ -196,8 +197,18 @@ struct App : Application {
 
 		ImGui::EndTable();
 		ImGui::End();
-
 	}
+
+	void draw_memory_view() {
+		//ImGui::Begin("Memory");
+	}
+
+	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override {
+		draw_debugger();
+		draw_registers();
+		draw_memory_view();
+	}
+
 	void cleanup() override {}
 	RefPtr<Scene> getScene() override { return &scene; }
 	void mouseButtonDown(Mouse::Button b) override {}
