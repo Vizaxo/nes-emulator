@@ -666,8 +666,29 @@ struct cpu6502 {
 		case op::CLD:
 			queue_uop(CLEAR_FLAG, (uop_target)0xff, flag::D);
 			break;
+		case op::BPL:
+			queue_uop(BRANCH_FLAG_UNSET, mem, (u16)flag::N);
+			break;
+		case op::BMI:
+			queue_uop(BRANCH_FLAG_SET, mem, (u16)flag::N);
+			break;
+		case op::BVC:
+			queue_uop(BRANCH_FLAG_UNSET, mem, (u16)flag::V);
+			break;
+		case op::BVS:
+			queue_uop(BRANCH_FLAG_SET, mem, (u16)flag::V);
+			break;
+		case op::BCC:
+			queue_uop(BRANCH_FLAG_UNSET, mem, (u16)flag::C);
+			break;
+		case op::BCS:
+			queue_uop(BRANCH_FLAG_SET, mem, (u16)flag::C);
+			break;
 		case op::BNE:
 			queue_uop(BRANCH_FLAG_UNSET, mem, (u16)flag::Z);
+			break;
+		case op::BEQ:
+			queue_uop(BRANCH_FLAG_SET, mem, (u16)flag::Z);
 			break;
 		default:
 			ASSERT(false, "Unimplemented instruction %d (opcode 0x%x)", instruction.op_type, opcode);
