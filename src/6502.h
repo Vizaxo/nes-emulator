@@ -675,8 +675,26 @@ struct cpu6502 {
 			break;
 		case op::NOP:
 			break;
+		case op::CLC:
+			queue_uop(CLEAR_FLAG, (uop_target)0xff, flag::C);
+			break;
 		case op::CLD:
 			queue_uop(CLEAR_FLAG, (uop_target)0xff, flag::D);
+			break;
+		case op::CLI:
+			queue_uop(CLEAR_FLAG, (uop_target)0xff, flag::I);
+			break;
+		case op::CLV:
+			queue_uop(CLEAR_FLAG, (uop_target)0xff, flag::V);
+			break;
+		case op::SEC:
+			queue_uop(SET_FLAG, (uop_target)0xff, flag::C);
+			break;
+		case op::SED:
+			queue_uop(SET_FLAG, (uop_target)0xff, flag::D);
+			break;
+		case op::SEI:
+			queue_uop(SET_FLAG, (uop_target)0xff, flag::I);
 			break;
 		case op::BPL:
 			queue_uop(BRANCH_FLAG_UNSET, mem, (u16)flag::N);
