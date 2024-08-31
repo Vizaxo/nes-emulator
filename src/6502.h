@@ -65,6 +65,7 @@ struct cpu6502 {
 		struct {
 			// Not guaranteed to be correct bit order. Might need to adjust if bit order is needed (i.e. if P needs to be read as a unit).
 
+			/*
 			// Bit 7 to bit 0
 			u8 n : 1; // negative
 			u8 v : 1; // overflow
@@ -74,6 +75,7 @@ struct cpu6502 {
 			u8 i : 1; // irq disable
 			u8 z : 1; // zero
 			u8 c : 1; // carry
+			*/
 		};
 	};
 
@@ -118,6 +120,8 @@ struct cpu6502 {
 		INC16,
 		INC_NOFLAG,
 		NOP,
+		CLEAR_FLAG,
+		SET_FLAG,
 	};
 	enum uop_target {
 		A,
@@ -134,6 +138,32 @@ struct cpu6502 {
 		tmp_b16,
 		mem,
 	};
+	enum flag {
+		C = 0,
+		Z,
+		I,
+		D,
+		B,
+		_, //ignored
+		V,
+		N,
+	};
+	static_assert(N == 7);
+
+	u8 get_flag_bit(flag f) {
+		return (u8)f;
+	}
+
+	u8 get_flag(flag f) {
+		return (p >> get_flag_bit(f)) & 1u;
+	}
+
+	void set_flag(flag f, bool set) {
+		if (set)
+			p = p | (1 << get_flag_bit(f));
+		else
+			p = p & ~(1 << get_flag_bit(f));
+	}
 
 	struct uop {
 		UOP_ID uop_id;
@@ -607,6 +637,9 @@ struct cpu6502 {
 			break;
 		case op::NOP:
 			break;
+		case op::CLD:
+			queue_uop(CLEAR_FLAG, (uop_target)0xff, flag::D);
+			break;
 		default:
 			ASSERT(false, "Unimplemented instruction %d (opcode 0x%x)", instruction.op_type, opcode);
 			break;
@@ -639,12 +672,12 @@ struct cpu6502 {
 
 		switch (op) {
 		case alu::adc:
-			ret = (u16)(*dest) + (u16)c + (u16)src;
+			ret = (u16)(*dest) + (u16)get_flag(flag::C) + (u16)src;
 			setC = true;
 			setV = true;
 			break;
 		case alu::sbc:
-			ret = (u16)(*dest) - (u16)c - (u16)src;
+			ret = (u16)(*dest) - (u16)get_flag(flag::C) - (u16)src;
 			setC = true;
 			setV = true;
 			break;
@@ -676,17 +709,17 @@ struct cpu6502 {
 			break;
 		case alu::rol:
 			ret = *dest << 1;
-			ret |= 0x1 & c;
+			ret |= 0x1 & get_flag(flag::C);
 			setC = true;
 			break;
 		case alu::lsr:
 			ret = *dest >> 1;
-			c = 0x1 & *dest;
+			set_flag(flag::C, 0x1 & *dest);
 			break;
 		case alu::ror:
 			ret = *dest >> 1;
-			ret |= (c & 0x1) << 7;
-			c = 0x1 & *dest;
+			ret |= (get_flag(flag::C) & 0x1) << 7;
+			set_flag(flag::C, 0x1 & *dest);
 			break;
 		default:
 			ASSERT(false, "Unimplemented ALU operation %d", op);
@@ -695,18 +728,18 @@ struct cpu6502 {
 
 		if (setflags && setV)
 			// overflow only occurs when both inputs are the same sign, and the output is a different sign
-			v = sign8(*dest) == sign8(src) ? sign8(ret) != sign8(*dest) : 0;
+			set_flag(flag::V, sign8(*dest) == sign8(src) ? sign8(ret) != sign8(*dest) : 0);
 
 		if (write_res)
 			*dest = (u8)(ret & 0xff);
 
 		if (setflags && setNZ) {
-			n = sign8(a);
-			z = a == 0;
+			set_flag(flag::N, sign8(a));
+			set_flag(flag::Z, a == 0);
 		}
 
 		if (setflags && setC)
-			c = ret > 0xff;
+			set_flag(flag::C, ret > 0xff);
 	}
 
 	void execute(op::op_type_t op) {
@@ -839,6 +872,12 @@ struct cpu6502 {
 				break;
 			case CMP:
 				alu_op(alu::sub, get_target(u.target), get_val(u.src), true, false);
+				break;
+			case CLEAR_FLAG:
+				set_flag((flag)u.data, false);
+				break;
+			case SET_FLAG:
+				set_flag((flag)u.data, true);
 				break;
 			default:
 				ASSERT(false, "Unimplemented uop %d", u.uop_id);
