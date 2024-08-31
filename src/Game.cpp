@@ -130,6 +130,50 @@ struct App : Application {
 		}
 		ImGui::EndTable();
 		ImGui::End();
+
+
+		ImGui::Begin("CPU State");
+		ImGui::BeginTable("Registers", 3);
+		ImGui::TableSetupColumn("Reg");
+		ImGui::TableSetupColumn("dec");
+		ImGui::TableSetupColumn("hex");
+		ImGui::TableHeadersRow();
+
+		struct reg_entry {
+			u8* reg;
+			str name;
+		};
+		static reg_entry regs[5];
+		regs[0] = {&nes.cpu.a, "a"};
+		regs[1] = {&nes.cpu.x, "x"};
+		regs[2] = {&nes.cpu.y, "y"};
+		regs[3] = {&nes.cpu.s, "s"};
+		regs[4] = {&nes.cpu.p, "p"};
+
+		for (int i = 0; i < 5; ++i) {
+			ImGui::PushID(i);
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::TextUnformatted(regs[i].name.s);
+			ImGui::TableSetColumnIndex(1);
+			ImGui::InputScalar("##dec", ImGuiDataType_U8, &nes.cpu.a, 0, 0, "%d");
+			ImGui::TableSetColumnIndex(2);
+			ImGui::InputScalar("##hex", ImGuiDataType_U8, &nes.cpu.a, 0, 0, "%02x");
+			ImGui::PopID();
+		}
+		ImGui::PushID(5);
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImGui::TextUnformatted("pc");
+		ImGui::TableSetColumnIndex(1);
+		ImGui::InputScalar("##dec", ImGuiDataType_U16, &nes.cpu.pc, 0, 0, "%d");
+		ImGui::TableSetColumnIndex(2);
+		ImGui::InputScalar("##hex", ImGuiDataType_U16, &nes.cpu.pc, 0, 0, "%02x");
+		ImGui::PopID();
+
+		ImGui::EndTable();
+		ImGui::End();
+
 	}
 	void cleanup() override {}
 	RefPtr<Scene> getScene() override { return &scene; }
