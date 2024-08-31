@@ -143,7 +143,7 @@ struct cpu6502 {
 	op opcode_table[NUM_OPCODES];
 
 	enum pattern_type_t {
-		pattern8,
+		group_one,
 	} pattern_type;
 	struct pattern_op_def {
 		op::op_type_t op_type;
@@ -152,16 +152,16 @@ struct cpu6502 {
 	};
 
 	Array<pattern_op_def> pattern_ops = {
-		{op::ORA, 0x01, pattern8},
-		{op::AND, 0x21, pattern8},
-		{op::EOR, 0x41, pattern8},
-		{op::ADC, 0x61, pattern8},
-		{op::STA, 0x81, pattern8},
-		{op::LDA, 0xA1, pattern8},
-		{op::CMP, 0xC1, pattern8},
-		{op::SBC, 0xE1, pattern8},
+		{op::ORA, 0x01, group_one},
+		{op::AND, 0x21, group_one},
+		{op::EOR, 0x41, group_one},
+		{op::ADC, 0x61, group_one},
+		{op::STA, 0x81, group_one},
+		{op::LDA, 0xA1, group_one},
+		{op::CMP, 0xC1, group_one},
+		{op::SBC, 0xE1, group_one},
 	};
-	op::addr_mode_t pattern_8_addr_modes[8] = {
+	op::addr_mode_t group_one_addr_modes[8] = {
 		op::Xind, op::zpg, op::imm, op::abs,
 		op::indY, op::zpgX, op::absY, op::absX,
 	};
@@ -172,9 +172,9 @@ struct cpu6502 {
 
 		for (pattern_op_def pattern_op : pattern_ops) {
 			switch (pattern_op.pattern_type) {
-			case pattern8:
+			case group_one:
 				for (int i = 0; i < 8; ++i)
-					opcode_table[pattern_op.base + i * 4] = { pattern_op.op_type, pattern_8_addr_modes[i] };
+					opcode_table[pattern_op.base + i * 4] = { pattern_op.op_type, group_one_addr_modes[i] };
 				break;
 			}
 		}
