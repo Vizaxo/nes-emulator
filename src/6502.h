@@ -541,7 +541,50 @@ struct cpu6502 {
 		}
 	}
 
-	static Product<str, u8> disassemble_instruction(u16 addr, Memory* mem) {
+	static u8 get_ins_length(u16 addr, Memory* mem) {
+		u8 opcode = debug_get_mem(addr, mem);
+
+		op instruction = opcode_table[opcode];
+		if (instruction.op_type == op::NOT_IMPLEMENTED)
+			instruction.addr_mode = op::NOT_IMPLEMENTED_ADDR;
+
+		switch(instruction.addr_mode) {
+		case op::A:
+			return 1;
+		case op::abs:
+			return 3;
+		case op::absX:
+			return 3;
+		case op::absY:
+			return 3;
+		case op::imm:
+			return 2;
+		case op::impl:
+			return 1;
+		case op::ind:
+			return 3;
+		case op::Xind:
+			return 2;
+		case op::indY:
+			return 2;
+		case op::rel:
+			return 2;
+		case op::zpg:
+			return 2;
+		case op::zpgX:
+			return 2;
+		case op::zpgY:
+			return 2;
+		case op::NOT_IMPLEMENTED_ADDR:
+			return 1;
+		default:
+			ASSERT(false, "Unimplemented print for addr mode %d", instruction.addr_mode);
+			return 255;
+		}
+		ASSERT(false, "Should never reach here");
+	}
+
+	static str disassemble_instruction(u16 addr, Memory* mem) {
 		str addr_mode;
 		u8 ins_length = 1;
 		u8 ins_bytes[3];
@@ -670,12 +713,12 @@ struct cpu6502 {
 			break;
 		}
 
-		return {ret_str, ins_length};
+		return ret_str;
 	}
 
 	static void print_instruction(u16 addr, Memory* mem) {
-		Product<str, u8> ret = disassemble_instruction(addr, mem);
-		LOG(Log::INFO, cpuChan, "%s", fst(ret).s);
+		str ret = disassemble_instruction(addr, mem);
+		LOG(Log::INFO, cpuChan, "%s", ret.s);
 	}
 
 	void decode(u8 opcode) {

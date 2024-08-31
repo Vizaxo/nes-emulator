@@ -20,22 +20,25 @@ struct App : Application {
 	struct disas_entry {
 		bool breakpoint;
 		u8 ins_len;
-		str disas;
 	};
-	disas_entry disassembly[Memory::MEM_MAX+1];
+	disas_entry ins_metadata[Memory::MEM_MAX+1];
 
 	void init(RefPtr<Renderer> renderer, PAL::WindowHandle h) override {
 		LOG(Log::INFO, appChan, "Initialized");
 		scene.camera.cam2d = { {0.f,0.f}, 1.f, h };
 		scene.camera.type = Camera::Cam2D;
 
+		for (int i = 0; i < Memory::MEM_MAX + 1; ++i) {
+			ins_metadata[i].breakpoint = false;
+		}
+
 		nes.init();
 	}
 
-	void build_disas_table() {
+	void update_ins_lengths() {
 		for (int addr = 0; addr < Memory::MEM_MAX; ++addr) {
-			Product<str, u8> ret = cpu6502::disassemble_instruction(addr, &nes.mem);
-			disassembly[addr] = {false, snd(ret), fst(ret)};
+			u8 len = cpu6502::get_ins_length(addr, &nes.mem);
+			ins_metadata[addr].ins_len = len;
 		}
 	}
 
@@ -46,12 +49,13 @@ struct App : Application {
 		} while (!nes.cpu.fetching);
 
 		executing_addr = nes.cpu.fetch_addr;
-		if (disassembly[nes.cpu.fetch_addr].breakpoint) {
+		if (ins_metadata[nes.cpu.fetch_addr].breakpoint) {
 			single_step_debugging = true;
 		}
 	}
 
 	void tick(float deltaTime) override {
+		update_ins_lengths();
 		if (single_step_debugging && !first_tick)
 			return;
 
@@ -61,8 +65,6 @@ struct App : Application {
 		}
 
 		// todo: figure out when we need to rebuild this
-		if (first_tick)
-			build_disas_table();
 		first_tick = false;
 	}
 
@@ -75,10 +77,6 @@ struct App : Application {
 		ImGui::SameLine();
 		if (ImGui::Button("Single step"))
 			single_step(); //TODO: probably shouldn't be in the render function.
-
-		ImGui::SameLine();
-		if (ImGui::Button("Refresh disas"))
-			build_disas_table(); //TODO: probably shouldn't be in the render function.
 
 		static bool focus_on_pc;
 		ImGui::SameLine();
@@ -100,7 +98,7 @@ struct App : Application {
 		u32 pc_row = 0;
 		int num_rows = 0;
 		while(addr <= Memory::MEM_MAX) {
-			disas_entry& ret = disassembly[addr];
+			disas_entry& ret = ins_metadata[addr];
 			addr += ret.ins_len;
 			if (addr == nes.cpu.pc)
 				pc_row = num_rows;
@@ -116,7 +114,7 @@ struct App : Application {
 			// to know which rows to render in the visible portion.
 			for (int row = 0; row < clipper.DisplayStart; ++row) {
 				if (addr <= Memory::MEM_MAX) {
-					disas_entry& ret = disassembly[addr];
+					disas_entry& ret = ins_metadata[addr];
 					addr += ret.ins_len;
 				}
 			}
@@ -124,17 +122,17 @@ struct App : Application {
 			for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++) {
 				if (addr <= Memory::MEM_MAX) {
 					ImGui::PushID(addr);
-					disas_entry& ret = disassembly[addr];
+					disas_entry& ret = ins_metadata[addr];
 					ImGui::TableNextRow();
 					ImGui::TableSetColumnIndex(0);
-					ImGui::Checkbox("##break", &disassembly[addr].breakpoint);
+					ImGui::Checkbox("##break", &ins_metadata[addr].breakpoint);
 
 					if (addr == executing_addr) {
 						ImGui::TableSetColumnIndex(1);
 						ImGui::TextUnformatted("->");
 					}
 					ImGui::TableSetColumnIndex(2);
-					ImGui::TextUnformatted(ret.disas.s);
+					ImGui::TextUnformatted(cpu6502::disassemble_instruction(addr, &nes.mem).s);
 					addr += ret.ins_len;
 					ImGui::PopID();
 				}
