@@ -99,6 +99,7 @@ struct cpu6502 {
 		FETCH,
 		DECODE,
 		SINGLE_BYTE_INS_DELAY,
+		CATCH_INFINITE_LOOP,
 
 		// EXECUTE uOPs
 		OR,
@@ -122,6 +123,8 @@ struct cpu6502 {
 		NOP,
 		CLEAR_FLAG,
 		SET_FLAG,
+		BRANCH_FLAG_SET,
+		BRANCH_FLAG_UNSET,
 	};
 	enum uop_target {
 		A,
@@ -475,6 +478,7 @@ struct cpu6502 {
 				queue_uop(MOV, tmp, mem);
 				fetch_pc_byte();
 				queue_uop(MOV, tmp_high, mem);
+				queue_uop(CATCH_INFINITE_LOOP, tmp16);
 				queue_uop(MOV16, pc16, tmp16);
 				break;
 			case op::ind:
@@ -662,6 +666,9 @@ struct cpu6502 {
 		case op::CLD:
 			queue_uop(CLEAR_FLAG, (uop_target)0xff, flag::D);
 			break;
+		case op::BNE:
+			queue_uop(BRANCH_FLAG_UNSET, mem, (u16)flag::Z);
+			break;
 		default:
 			ASSERT(false, "Unimplemented instruction %d (opcode 0x%x)", instruction.op_type, opcode);
 			break;
@@ -756,8 +763,8 @@ struct cpu6502 {
 			*dest = (u8)(ret & 0xff);
 
 		if (setflags && setNZ) {
-			set_flag(flag::N, sign8(a));
-			set_flag(flag::Z, a == 0);
+			set_flag(flag::N, sign8(*dest));
+			set_flag(flag::Z, *dest == 0);
 		}
 
 		if (setflags && setC)
@@ -857,7 +864,7 @@ struct cpu6502 {
 				alu_op(alu::sbc, get_target(u.target), get_val(u.src));
 				break;
 			case MOV:
-				if (u.target == A)
+				if (u.target == A || u.target == X || u.target == Y)
 					// So flags are set
 					alu_op(alu::load, get_target(u.target), get_val(u.src));
 				else
@@ -901,6 +908,28 @@ struct cpu6502 {
 			case SET_FLAG:
 				set_flag((flag)u.data, true);
 				break;
+			case BRANCH_FLAG_SET:
+				if (get_flag((flag)u.data)) {
+					i8 offset = get_val(u.target);
+					pc = (i16)pc + offset;
+					// TODO: extra cycle for page transition
+				}
+				break;
+			case BRANCH_FLAG_UNSET:
+				if (!get_flag((flag)u.data)) {
+					i8 offset = get_val(u.target);
+					pc = (i16)pc + offset;
+					// TODO: extra cycle for page transition
+				}
+				break;
+			case CATCH_INFINITE_LOOP:
+			{
+				u16 jmp_target = get_val_16(u.target);
+				if (jmp_target == pc-3)
+					// TODO: this is valid in non-test code as interrupts can escape it.
+					ASSERT(false, "Infinite loop detected");
+				break;
+			}
 			default:
 				ASSERT(false, "Unimplemented uop %d", u.uop_id);
 				break;
