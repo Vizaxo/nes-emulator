@@ -106,6 +106,7 @@ struct cpu6502 {
 		ADC16_NOFLAG,
 		ADD_NOFLAG,
 		MOV,
+		MOV16,
 		CMP,
 		SBC,
 		ASL,
@@ -433,6 +434,37 @@ struct cpu6502 {
 	void decode(u8 opcode) {
 		op instruction = opcode_table[opcode];
 
+		// Handle jumps first because addressing modes behave slightly differently
+		switch (instruction.op_type) {
+		case op::JMP:
+			switch (instruction.addr_mode) {
+			case op::abs:
+				fetch_pc_byte();
+				queue_uop(MOV, tmp, mem);
+				queue_uop(MOV, tmp_high, mem);
+				queue_uop(MOV16, pc16, tmp16);
+				break;
+			case op::ind:
+				fetch_pc_byte();
+				queue_uop(MOV, tmp, mem);
+				queue_uop(MOV, tmp_high, mem);
+				queue_uop(READ_MEM, mem, tmp16);
+				queue_uop(MOV, tmp_bl, mem);
+				queue_uop(INC16, tmp16);
+				queue_uop(READ_MEM, mem, tmp16);
+				queue_uop(MOV, tmp_bh, mem);
+				queue_uop(MOV, pc16, tmp_b);
+				break;
+			default:
+				ASSERT(false, "Illegal JMP addressing mode %d", instruction.addr_mode);
+				break;
+			}
+			return; // Fully processed jump
+		default:
+			break;
+			// Fallthrough to non-jmp instructions
+		}
+
 		switch (instruction.addr_mode) {
 		case op::A:
 			queue_uop(SINGLE_BYTE_INS_DELAY, (uop_target)0x0, 0x0);
@@ -499,7 +531,6 @@ struct cpu6502 {
 			break;
 		case op::rel:
 			fetch_pc_byte();
-			ASSERT(false, "TODO: implement relative jump addressing");
 			break;
 		case op::zpg:
 			fetch_pc_byte();
@@ -575,6 +606,9 @@ struct cpu6502 {
 			queue_uop(MOV, mem, tmp);
 			break;
 		case op::NOP:
+			break;
+		default:
+			ASSERT(false, "Unimplemented instruction %d (opcode 0x%x)", instruction.op_type, opcode);
 			break;
 		}
 	}
@@ -774,6 +808,9 @@ struct cpu6502 {
 					alu_op(alu::load, get_target(u.target), get_val(u.src));
 				else
 					*get_target(u.target) = get_val((uop_target)u.data);
+				break;
+			case MOV16:
+				*get_target_16(u.target) = get_val_16((uop_target)u.data);
 				break;
 			case ASL:
 				alu_op(alu::asl, get_target(u.target), get_val(u.src));
