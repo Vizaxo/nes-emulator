@@ -583,6 +583,7 @@ struct cpu6502 {
 		enum alu_op {
 			adc,
 			sbc,
+			sub,
 			or_,
 			and_,
 			xor_,
@@ -596,7 +597,7 @@ struct cpu6502 {
 		};
 	};
 
-	void alu_op(alu::alu_op op, u8* dest, u8 src, bool setflags = true) {
+	void alu_op(alu::alu_op op, u8* dest, u8 src, bool setflags = true, bool write_res = true) {
 		u16 ret;
 		bool setNZ = true;
 		bool setC = false;
@@ -612,6 +613,10 @@ struct cpu6502 {
 			ret = (u16)(*dest) - (u16)c - (u16)src;
 			setC = true;
 			setV = true;
+			break;
+		case alu::sub:
+			ret = *dest - src;
+			setC = true;
 			break;
 		case alu::or_:
 			ret = *dest | src;
@@ -654,21 +659,20 @@ struct cpu6502 {
 			break;
 		}
 
-		*dest = (u8)(ret & 0xff);
+		if (setflags && setV)
+			// overflow only occurs when both inputs are the same sign, and the output is a different sign
+			v = sign8(*dest) == sign8(src) ? sign8(ret) != sign8(*dest) : 0;
 
-		if (!setflags)
-			return;
+		if (write_res)
+			*dest = (u8)(ret & 0xff);
 
-		if (setNZ) {
+		if (setflags && setNZ) {
 			n = sign8(a);
 			z = a == 0;
 		}
-		if (setC)
-			c = ret > 0xff;
 
-		if (setV)
-			// overflow only occurs when both inputs are the same sign, and the output is a different sign
-			v = sign8(*dest) == sign8(src) ? sign8(ret) != sign8(*dest) : 0;
+		if (setflags && setC)
+			c = ret > 0xff;
 	}
 
 	void execute(op::op_type_t op) {
@@ -796,6 +800,9 @@ struct cpu6502 {
 				++(*get_target(u.target));
 				break;
 			case NOP:
+				break;
+			case CMP:
+				alu_op(alu::sub, get_target(u.target), get_val(u.src), true, false);
 				break;
 			default:
 				ASSERT(false, "Unimplemented uop %d", u.uop_id);
