@@ -68,12 +68,17 @@ struct App : Application {
 
 	void draw_debugger() {
 		ImGui::Begin("Debugger");
+
 		if (ImGui::Button(single_step_debugging ? "Continue" : "Pause"))
 			single_step_debugging = !single_step_debugging;
 
 		ImGui::SameLine();
 		if (ImGui::Button("Single step"))
 			single_step(); //TODO: probably shouldn't be in the render function.
+
+		ImGui::SameLine();
+		if (ImGui::Button("Refresh disas"))
+			build_disas_table(); //TODO: probably shouldn't be in the render function.
 
 		static bool focus_on_pc;
 		ImGui::SameLine();
