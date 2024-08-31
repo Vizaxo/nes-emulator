@@ -1,6 +1,7 @@
 #pragma once
 
 #include <core/Log.h>
+#include <types/Str.h>
 
 #include "6502.h"
 
@@ -23,6 +24,8 @@ struct NES {
 		mem.debug_setmem(0xfffd, 0x01);
 		mem.debug_setmem(0x0100, 0xA9);
 		mem.debug_setmem(0x0101, 42);
+
+		load_rom("roms/6502_functional_test.bin");
 	}
 
 	inline void tick() {
@@ -38,6 +41,15 @@ struct NES {
 			cpu.pinout.d = mem.pinout.d;
 		else
 			mem.pinout.d = cpu.pinout.d;
+	}
+
+	inline void load_rom(str path) {
+#pragma warning (disable : 4996)
+		std::FILE* f = fopen(path.s, "r");
+		ASSERT(f, "Could not open file %s for reading", path.s);
+
+		size_t ret = fread(mem.memory, 1, 64*1024, f);
+		ASSERT(ret > 0, "Could not read any bytes from file");
 	}
 };
 
