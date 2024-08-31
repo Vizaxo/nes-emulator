@@ -10,6 +10,7 @@ static inline Log::Channel nesChan = { "NES" };
 struct NES {
 	cpu6502 cpu;
 	Memory mem;
+	bool test_rom;
 
 	inline void init() {
 		cpu.init();
@@ -25,7 +26,14 @@ struct NES {
 		mem.debug_setmem(0x0100, 0xA9);
 		mem.debug_setmem(0x0101, 42);
 
-		load_rom("roms/6502_functional_test.bin");
+		if (test_rom) {
+			load_rom("roms/6502_functional_test.bin");
+
+			for (int i = 0; i < 1; ++i)
+				cpu.tick();
+			cpu.pc = 0x0400; // test rom start addr. Resets are trapped
+			cpu.clear_uop_queue();
+		}
 	}
 
 	inline void tick() {

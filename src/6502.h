@@ -744,7 +744,6 @@ struct cpu6502 {
 				queue_uop(FETCH, mem);
 
 			uop u = pop_uop();
-			LOG(Log::INFO, cpuChan, "uOP execute: %d (data %d)", u.uop_id, u.data);
 			switch (u.uop_id) {
 			case LDIMM16:
 				*get_target_16(u.target) = u.data;
