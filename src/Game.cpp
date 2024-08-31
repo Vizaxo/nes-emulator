@@ -200,7 +200,43 @@ struct App : Application {
 	}
 
 	void draw_memory_view() {
-		//ImGui::Begin("Memory");
+		ImGui::Begin("Memory");
+
+		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
+			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable;
+
+		static int num_columns = 8;
+		ImGui::InputInt("Num columns", &num_columns);
+		ImGui::BeginTable("##mem", num_columns+1, table_flags);
+
+		for (int i = 0; i < num_columns; i++) {
+			ImGui::PushID(i);
+			ImGui::TableSetupColumn("");
+			ImGui::PopID();
+		}
+		ImGui::TableHeadersRow();
+
+		ImGuiListClipper clipper;
+		int num_rows = (Memory::MEM_MAX+1) / num_columns + ((Memory::MEM_MAX+1) % num_columns != 0 ? 1 : 0);
+		clipper.Begin(num_rows);
+
+		while (clipper.Step()) {
+			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
+				u16 addr = i * num_columns;
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0);
+				ImGui::Text("%04x", addr);
+				for (int j = 0; j < num_columns; j++) {
+					ImGui::PushID(addr+j);
+					ImGui::TableSetColumnIndex(j + 1);
+					ImGui::InputScalar("", ImGuiDataType_U8, &nes.mem.memory[addr + j], 0, 0, "%02x");
+					ImGui::PopID();
+				}
+			}
+		}
+
+		ImGui::EndTable();
+		ImGui::End();
 	}
 
 	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override {
