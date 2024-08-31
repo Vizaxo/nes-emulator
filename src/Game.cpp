@@ -76,6 +76,10 @@ struct App : Application {
 		if (ImGui::Button("Single step"))
 			single_step(); //TODO: probably shouldn't be in the render function.
 
+		static bool focus_on_pc;
+		ImGui::SameLine();
+		bool focus_on_pc_enabled_this_frame = ImGui::Checkbox("Focus PC", &focus_on_pc);
+
 		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
 			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable
 			| ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable;
@@ -89,12 +93,16 @@ struct App : Application {
 		ImGuiListClipper clipper;
 
 		u32 addr = 0;
+		u32 pc_row = 0;
 		int num_rows = 0;
 		while(addr <= Memory::MEM_MAX) {
 			disas_entry& ret = disassembly[addr];
 			addr += ret.ins_len;
+			if (addr == nes.cpu.pc)
+				pc_row = num_rows;
 			++num_rows;
 		}
+
 		clipper.Begin(num_rows);
 
 		addr = 0;
@@ -127,7 +135,22 @@ struct App : Application {
 					ImGui::PopID();
 				}
 			}
+
 		}
+
+		static float scroll_y = 0;
+		scroll_y = ImGui::GetScrollY();
+		static float last_requested_scroll_y = scroll_y;
+
+		if (!focus_on_pc_enabled_this_frame && scroll_y != last_requested_scroll_y)
+			focus_on_pc = false;
+
+		if (focus_on_pc) {
+			last_requested_scroll_y = clipper.ItemsHeight * pc_row;
+			ImGui::SetScrollY(clipper.ItemsHeight * pc_row);
+		}
+
+
 		ImGui::EndTable();
 		ImGui::End();
 
