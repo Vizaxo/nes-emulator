@@ -9,6 +9,11 @@
 
 static inline Log::Channel cpuChan = {"CPU"};
 
+// Get the 8-bit two's complement sign bit. Takes 16-bit to account for overflows.
+u8 sign8(u16 d) {
+	return d & 0x80 ? 1 : 0;
+}
+
 struct Memory {
 	static constexpr u32 MEM_MAX = 0xffff;
 	u8 memory[MEM_MAX+1];
@@ -86,7 +91,16 @@ struct cpu6502 {
 		READ_MEM,
 		WRITE_PCL,
 		WRITE_PCH,
-		WRITE_A,
+
+		OR_A,
+		AND_A,
+		XOR_A,
+		ADC_A,
+		STORE_A,
+		LOAD_A,
+		CMP_A,
+		SBC_A,
+
 		FETCH,
 		DECODE,
 		EXECUTE,
@@ -98,7 +112,14 @@ struct cpu6502 {
 
 	struct op {
 		enum op_type_t {
+			ORA,
+			AND,
+			EOR,
+			ADC,
+			STA,
 			LDA,
+			CMP,
+			SBC,
 			NOP,
 			NOT_IMPLEMENTED,
 		} op_type;
@@ -131,7 +152,14 @@ struct cpu6502 {
 	};
 
 	Array<pattern_op_def> pattern_ops = {
+		{op::ORA, 0x01, pattern8},
+		{op::AND, 0x21, pattern8},
+		{op::EOR, 0x41, pattern8},
+		{op::ADC, 0x61, pattern8},
+		{op::STA, 0x81, pattern8},
 		{op::LDA, 0xA1, pattern8},
+		{op::CMP, 0xC1, pattern8},
+		{op::SBC, 0xE1, pattern8},
 	};
 	op::addr_mode_t pattern_8_addr_modes[8] = {
 		op::Xind, op::zpg, op::imm, op::abs,
@@ -200,8 +228,29 @@ struct cpu6502 {
 		}
 
 		switch(instruction.op_type) {
+		case op::ORA:
+			queue_uop(OR_A);
+			break;
+		case op::AND:
+			queue_uop(AND_A);
+			break;
+		case op::EOR:
+			queue_uop(XOR_A);
+			break;
+		case op::ADC:
+			queue_uop(ADC_A);
+			break;
+		case op::STA:
+			queue_uop(STORE_A);
+			break;
 		case op::LDA:
-			queue_uop(WRITE_A);
+			queue_uop(LOAD_A);
+			break;
+		case op::CMP:
+			queue_uop(CMP_A);
+			break;
+		case op::SBC:
+			queue_uop(SBC_A);
 			break;
 		case op::NOP:
 			break;
@@ -211,10 +260,74 @@ struct cpu6502 {
 		}
 	}
 
+	struct alu {
+		enum alu_op {
+			adc,
+			sbc,
+			or_,
+			and_,
+			xor_,
+			inc,
+			dec,
+			load,
+		};
+	};
+
+	void alu_op(alu::alu_op op, u8* dest, u8 src) {
+		u16 ret;
+		bool setNZ = true;
+		bool setCV = false;
+
+		switch (op) {
+		case alu::adc:
+			ret = (u16)(*dest) + (u16)c + (u16)src;
+			setCV = true;
+			break;
+		case alu::sbc:
+			ret = (u16)(*dest) - (u16)c - (u16)src;
+			setCV = true;
+			break;
+		case alu::or_:
+			ret = *dest | src;
+			break;
+		case alu::and_:
+			ret = *dest & src;
+			break;
+		case alu::xor_:
+			ret = *dest ^ src;
+			break;
+		case alu::inc:
+			ret = *dest + 1;
+			break;
+		case alu::dec:
+			ret = *dest - 1;
+			break;
+		case alu::load:
+			ret = src;
+			break;
+		default:
+			ASSERT(false, "Unimplemented ALU operation %d", op);
+			break;
+		}
+
+		*dest = (u8)(ret & 0xff);
+
+		if (setNZ) {
+			n = sign8(a);
+			z = a == 0;
+		}
+		if (setCV) {
+			c = ret > 0xff;
+			// overflow only occurs when both inputs are the same sign, and the output is a different sign
+			v = sign8(*dest) == sign8(src) ? sign8(ret) != sign8(*dest) : 0;
+		}
+
+	}
+
 	void init() {
 		build_opcode_table();
 	}
-	
+
 	void tick() {
 		if (!pinout.resN) {
 			// initialise cpu
@@ -260,9 +373,27 @@ struct cpu6502 {
 				decode(pinout.d);
 				queue_uop(FETCH);
 				break;
-			case WRITE_A:
-				LOG(Log::INFO, cpuChan, "Wrote %d to register A", pinout.d);
-				a = pinout.d;
+
+			case OR_A:
+				alu_op(alu::or_, &a, pinout.d);
+				break;
+			case AND_A:
+				alu_op(alu::and_, &a, pinout.d);
+				break;
+			case XOR_A:
+				alu_op(alu::xor_, &a, pinout.d);
+				break;
+			case ADC_A:
+				alu_op(alu::adc, &a, pinout.d);
+				break;
+			case SBC_A:
+				alu_op(alu::sbc, &a, pinout.d);
+				break;
+			case STORE_A:
+				pinout.d = a;
+				break;
+			case LOAD_A:
+				alu_op(alu::load, &a, pinout.d);
 				break;
 			default:
 				ASSERT(false, "Unimplemented uop %d", u.uop_id);
