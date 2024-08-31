@@ -25,7 +25,19 @@ struct App : Application {
 		nes.tick();
 	}
 
-	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override {}
+	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override
+	{
+		ImGui::Begin("Debugger");
+		ImGui::SliderInt("Break addr", &nes.cpu.debug_break_addr, -1, 0xffff, "%04x");
+
+		u32 addr = 0;
+		while (addr < Memory::MEM_MAX) {
+			Product<str, u8> ret = cpu6502::disassemble_instruction(addr, &nes.mem);
+			ImGui::Text("%s", fst(ret).s);
+			addr += snd(ret);
+		}
+		ImGui::End();
+	}
 	void cleanup() override {}
 	RefPtr<Scene> getScene() override { return &scene; }
 	void mouseButtonDown(Mouse::Button b) override {}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <types/Types.h>
+#include <types/Product.h>
 #include <core/Assert.h>
 #include <core/Log.h>
 
@@ -260,7 +261,7 @@ struct cpu6502 {
 		} addr_mode;
 	};
 	static constexpr u16 NUM_OPCODES = 0x100;
-	op opcode_table[NUM_OPCODES];
+	static inline op opcode_table[NUM_OPCODES];
 
 	enum pattern_type_t {
 		group_one,
@@ -470,12 +471,12 @@ struct cpu6502 {
 		queue_uop(INC16, pc16);
 	}
 
-	u8 debug_get_mem(u16 addr) {
-		ASSERT(debug_mem, "mem was nullptr");
-		return (*debug_mem)[addr];
+	static u8 debug_get_mem(u16 addr, Memory* mem) {
+		ASSERT(mem, "mem was nullptr");
+		return (*mem)[addr];
 	}
 
-	str print_op_type(op::op_type_t op_type) {
+	static str print_op_type(op::op_type_t op_type) {
 		switch (op_type) {
 		case op::ORA: return "ora";
 		case op::AND: return "and";
@@ -535,21 +536,24 @@ struct cpu6502 {
 		case op::NOP: return "nop";
 		case op::NOT_IMPLEMENTED:
 		default:
-			ASSERT(false, "Unimplemented print for op type %d", op_type);
-			return "NOT_IMPLEMENTED addr mode";
+			return "-";
 		}
 	}
 
-	u8 print_instruction(u16 addr) {
+	static Product<str, u8> disassemble_instruction(u16 addr, Memory* mem) {
 		str addr_mode;
 		u8 ins_length = 1;
 		u8 ins_bytes[3];
-		ins_bytes[0] = debug_get_mem(addr);
-		ins_bytes[1] = debug_get_mem(addr+1);
-		ins_bytes[2] = debug_get_mem(addr+2);
+		ins_bytes[0] = debug_get_mem(addr, mem);
+		ins_bytes[1] = debug_get_mem(addr+1, mem);
+		ins_bytes[2] = debug_get_mem(addr+2, mem);
 
 		u8 opcode = ins_bytes[0];
+
 		op instruction = opcode_table[opcode];
+		if (instruction.op_type == op::NOT_IMPLEMENTED)
+			instruction.addr_mode = op::NOT_IMPLEMENTED_ADDR;
+
 		switch(instruction.addr_mode) {
 		case op::A:
 			addr_mode = "A";
@@ -641,28 +645,36 @@ struct cpu6502 {
 			break;
 		}
 		case op::NOT_IMPLEMENTED_ADDR:
+			addr_mode = "";
+			break;
 		default:
 			ASSERT(false, "Unimplemented print for addr mode %d", addr_mode);
 			addr_mode = "unimplemented addr mode";
 			break;
 		}
 
+		str ret_str;
 		switch (ins_length) {
 		case 1:
-			LOG(Log::INFO, cpuChan, "%04x:\t%02x\t%s %s", addr, opcode, print_op_type(instruction.op_type).s, addr_mode.s);
+			ret_str = str::strf("%04x:\t%02x\t\t%s %s", addr, opcode, print_op_type(instruction.op_type).s, addr_mode.s);
 			break;
 		case 2:
-			LOG(Log::INFO, cpuChan, "%04x:\t%02x%02x\t%s %s", addr, opcode, ins_bytes[1], print_op_type(instruction.op_type).s, addr_mode.s);
+			ret_str = str::strf("%04x:\t%02x%02x\t\t%s %s", addr, opcode, ins_bytes[1], print_op_type(instruction.op_type).s, addr_mode.s);
 			break;
 		case 3:
-			LOG(Log::INFO, cpuChan, "%04x:\t%02x%02x%02x\t%s %s", addr, opcode, ins_bytes[2], ins_bytes[3], print_op_type(instruction.op_type).s, addr_mode.s);
+			ret_str = str::strf("%04x:\t%02x%02x%02x\t\t%s %s", addr, opcode, ins_bytes[2], ins_bytes[3], print_op_type(instruction.op_type).s, addr_mode.s);
 			break;
 		default:
 			ASSERT(false, "Unimplemented print for instruction length %d", ins_length);
 			break;
 		}
 
-		return ins_length;
+		return {ret_str, ins_length};
+	}
+
+	static void print_instruction(u16 addr, Memory* mem) {
+		Product<str, u8> ret = disassemble_instruction(addr, mem);
+		LOG(Log::INFO, cpuChan, "%s", fst(ret).s);
 	}
 
 	void decode(u8 opcode) {
@@ -1076,15 +1088,16 @@ struct cpu6502 {
 				ASSERT(u.target == mem, "FETCH must fetch from mem")
 				if (pc == debug_break_addr && !debug_single_stepping) {
 					LOG(Log::INFO, cpuChan, "Breakpoint $%04x hit", debug_break_addr);
-					print_instruction(pc);
+					print_instruction(pc, debug_mem);
 					debug_single_stepping = true;
 				}
 
 				if (debug_single_stepping) {
+					end_cycle = true;
 					break;
 				}
 
-				print_instruction(pc);
+				print_instruction(pc, debug_mem);
 
 				fetch_pc_byte();
 				queue_uop(DECODE, mem);
