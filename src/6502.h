@@ -538,13 +538,16 @@ struct cpu6502 {
 		}
 	}
 
-	void print_instruction(u8 opcode, op instruction) {
+	u8 print_instruction(u16 addr) {
 		str addr_mode;
 		u8 ins_length = 1;
 		u8 ins_bytes[3];
-		ins_bytes[0] = opcode;
-		ins_bytes[1] = debug_get_mem(pc);
-		ins_bytes[2] = debug_get_mem(pc+1);
+		ins_bytes[0] = debug_get_mem(addr);
+		ins_bytes[1] = debug_get_mem(addr+1);
+		ins_bytes[2] = debug_get_mem(addr+2);
+
+		u8 opcode = ins_bytes[0];
+		op instruction = opcode_table[opcode];
 		switch(instruction.addr_mode) {
 		case op::A:
 			addr_mode = "A";
@@ -611,7 +614,7 @@ struct cpu6502 {
 		{
 			i8 low = *(i8*)&ins_bytes[1];
 			ins_length += 1;
-			addr_mode = str::strf("$%+d ($%04x)", low, (i32)pc+1+low);
+			addr_mode = str::strf("$%+d ($%04x)", low, (i32)addr+2+low);
 			break;
 		}
 		case op::zpg:
@@ -644,23 +647,25 @@ struct cpu6502 {
 
 		switch (ins_length) {
 		case 1:
-			LOG(Log::INFO, cpuChan, "%04x:\t%02x\t%s %s", pc - 1, opcode, print_op_type(instruction.op_type).s, addr_mode.s);
+			LOG(Log::INFO, cpuChan, "%04x:\t%02x\t%s %s", addr, opcode, print_op_type(instruction.op_type).s, addr_mode.s);
 			break;
 		case 2:
-			LOG(Log::INFO, cpuChan, "%04x:\t%02x%02x\t%s %s", pc - 1, opcode, debug_get_mem(pc), print_op_type(instruction.op_type).s, addr_mode.s);
+			LOG(Log::INFO, cpuChan, "%04x:\t%02x%02x\t%s %s", addr, opcode, ins_bytes[1], print_op_type(instruction.op_type).s, addr_mode.s);
 			break;
 		case 3:
-			LOG(Log::INFO, cpuChan, "%04x:\t%02x%02x%02x\t%s %s", pc - 1, opcode, debug_get_mem(pc), debug_get_mem(pc+1), print_op_type(instruction.op_type).s, addr_mode.s);
+			LOG(Log::INFO, cpuChan, "%04x:\t%02x%02x%02x\t%s %s", addr, opcode, ins_bytes[2], ins_bytes[3], print_op_type(instruction.op_type).s, addr_mode.s);
 			break;
 		default:
 			ASSERT(false, "Unimplemented print for instruction length %d", ins_length);
 			break;
 		}
+
+		return ins_length;
 	}
 
 	void decode(u8 opcode) {
 		op instruction = opcode_table[opcode];
-		print_instruction(opcode, instruction);
+		print_instruction(pc-1);
 
 		// Handle jumps first because addressing modes behave slightly differently
 		switch (instruction.op_type) {
