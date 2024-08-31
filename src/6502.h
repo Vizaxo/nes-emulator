@@ -57,6 +57,7 @@ struct cpu6502 {
 		u16 pc;
 	};
 	u8 s; // pointer to low byte of stack addr
+	u8 tmp_internal;
 
 	union {
 		u8 p; // processor flags
@@ -92,22 +93,42 @@ struct cpu6502 {
 		WRITE_PCL,
 		WRITE_PCH,
 
-		OR_A,
-		AND_A,
-		XOR_A,
-		ADC_A,
-		STORE_A,
-		LOAD_A,
-		CMP_A,
-		SBC_A,
-
 		FETCH,
 		DECODE,
-		EXECUTE,
+
+		// EXECUTE uOPs
+		OR,
+		AND,
+		XOR,
+		ADC,
+		MOV,
+		CMP,
+		SBC,
+		ASL,
+		ROL,
+		LSR,
+		ROR,
+		DEC,
+		INC,
+		NOP,
 	};
+	enum uop_target {
+		A,
+		X,
+		Y,
+		pcl,
+		pch,
+		tmp,
+		mem,
+	};
+
 	struct uop {
 		UOP_ID uop_id;
-		u16 data;
+		uop_target target;
+		union {
+			u16 data;
+			uop_target src;
+		};
 	};
 
 	struct op {
@@ -120,6 +141,14 @@ struct cpu6502 {
 			LDA,
 			CMP,
 			SBC,
+			ASL,
+			ROL,
+			LSR,
+			ROR,
+			STX,
+			LDX,
+			DEC,
+			INC,
 			NOP,
 			NOT_IMPLEMENTED,
 		} op_type;
@@ -137,6 +166,7 @@ struct cpu6502 {
 			zpg,
 			zpgX,
 			zpgY,
+			NOT_IMPLEMENTED_ADDR,
 		} addr_mode;
 	};
 	static constexpr u16 NUM_OPCODES = 0x100;
@@ -144,6 +174,7 @@ struct cpu6502 {
 
 	enum pattern_type_t {
 		group_one,
+		group_two,
 	} pattern_type;
 	struct pattern_op_def {
 		op::op_type_t op_type;
@@ -160,10 +191,23 @@ struct cpu6502 {
 		{op::LDA, 0xA1, group_one},
 		{op::CMP, 0xC1, group_one},
 		{op::SBC, 0xE1, group_one},
+
+		{op::ASL, 0x06, group_two},
+		{op::ROL, 0x26, group_two},
+		{op::LSR, 0x46, group_two},
+		{op::ROR, 0x66, group_two},
+		{op::STX, 0x86, group_two},
+		{op::LDX, 0xA6, group_two},
+		{op::DEC, 0xC6, group_two},
+		{op::INC, 0xE6, group_two},
 	};
 	op::addr_mode_t group_one_addr_modes[8] = {
 		op::Xind, op::zpg, op::imm, op::abs,
 		op::indY, op::zpgX, op::absY, op::absX,
+	};
+	op::addr_mode_t group_two_addr_modes[7] = {
+		op::zpg, op::A, op::abs,
+		op::NOT_IMPLEMENTED_ADDR, op::zpgX, op::NOT_IMPLEMENTED_ADDR, op::absX,
 	};
 
 	void build_opcode_table() {
@@ -175,6 +219,10 @@ struct cpu6502 {
 			case group_one:
 				for (int i = 0; i < 8; ++i)
 					opcode_table[pattern_op.base + i * 4] = { pattern_op.op_type, group_one_addr_modes[i] };
+				break;
+			case group_two:
+				for (int i = 0; i < 7; ++i)
+					opcode_table[pattern_op.base + i * 4] = { pattern_op.op_type, group_two_addr_modes[i] };
 				break;
 			}
 		}
@@ -194,8 +242,14 @@ struct cpu6502 {
 		uops[uop_num++] = u;
 	}
 
-	void queue_uop(enum UOP_ID uid, u16 data = 0x0) {
-		queue_uop({uid, data});
+	void queue_uop(enum UOP_ID uid, uop_target target, u16 data = 0x0) {
+		queue_uop({uid, target, data});
+	}
+
+	void queue_uop(enum UOP_ID uid, uop_target target, uop_target src) {
+		uop u = { uid, target };
+		u.src = src;
+		queue_uop(u);
 	}
 
 	uop pop_uop() {
@@ -212,8 +266,25 @@ struct cpu6502 {
 		uop_num = 0;
 	}
 
+	u8* get_target(uop_target target) {
+		switch (target) {
+		case A: return &a;
+		case X: return &x;
+		case Y: return &y;
+		case pch: return ((u8*)&pc)+1;
+		case pcl: return (u8*)&pc; // Assuming little endian
+		case tmp: return &tmp_internal; // ?
+		case mem: return &pinout.d;
+		default: ASSERT(false, "Target not implemented"); return nullptr;
+		}
+	}
+
+	u8 get_val(uop_target target) {
+		return *get_target(target);
+	}
+
 	void fetch_pc_byte() {
-		queue_uop(READ_MEM, pc);
+		queue_uop(READ_MEM, mem, pc);
 		++pc;
 	}
 
@@ -228,37 +299,61 @@ struct cpu6502 {
 			break;
 		default:
 			ASSERT(false, "Unimplemented addressing mode %d (opcode %x)", instruction.addr_mode, opcode);
+			break;
 		}
 
-		switch(instruction.op_type) {
+		switch (instruction.op_type) {
 		case op::ORA:
-			queue_uop(OR_A);
+			queue_uop(OR, A, mem);
 			break;
 		case op::AND:
-			queue_uop(AND_A);
+			queue_uop(AND, A, mem);
 			break;
 		case op::EOR:
-			queue_uop(XOR_A);
+			queue_uop(XOR, A, mem);
 			break;
 		case op::ADC:
-			queue_uop(ADC_A);
+			queue_uop(ADC, A, mem);
 			break;
 		case op::STA:
-			queue_uop(STORE_A);
+			queue_uop(MOV, mem, A);
 			break;
 		case op::LDA:
-			queue_uop(LOAD_A);
+			queue_uop(MOV, A, mem);
 			break;
 		case op::CMP:
-			queue_uop(CMP_A);
+			queue_uop(CMP, A, mem);
 			break;
 		case op::SBC:
-			queue_uop(SBC_A);
+			queue_uop(SBC, A, mem);
+			break;
+		case op::ASL:
+			queue_uop(ASL, A, mem);
+			break;
+		case op::ROL:
+			queue_uop(ROL, A, mem);
+			break;
+		case op::LSR:
+			queue_uop(LSR, A, mem);
+			break;
+		case op::ROR:
+			queue_uop(ROR, A, mem);
+			break;
+		case op::STX:
+			queue_uop(MOV, mem, X);
+			break;
+		case op::LDX:
+			queue_uop(MOV, X, mem);
+			break;
+		case op::DEC:
+			queue_uop(DEC, tmp, mem);
+			queue_uop(MOV, mem, tmp);
+			break;
+		case op::INC:
+			queue_uop(INC, tmp, mem);
+			queue_uop(MOV, mem, tmp);
 			break;
 		case op::NOP:
-			break;
-		default:
-			ASSERT(false, "Unimplemented opcode %d (opcode %x)", instruction.op_type, opcode);
 			break;
 		}
 	}
@@ -273,22 +368,29 @@ struct cpu6502 {
 			inc,
 			dec,
 			load,
+			asl,
+			rol,
+			lsr,
+			ror,
 		};
 	};
 
 	void alu_op(alu::alu_op op, u8* dest, u8 src) {
 		u16 ret;
 		bool setNZ = true;
-		bool setCV = false;
+		bool setC = false;
+		bool setV = false;
 
 		switch (op) {
 		case alu::adc:
 			ret = (u16)(*dest) + (u16)c + (u16)src;
-			setCV = true;
+			setC = true;
+			setV = true;
 			break;
 		case alu::sbc:
 			ret = (u16)(*dest) - (u16)c - (u16)src;
-			setCV = true;
+			setC = true;
+			setV = true;
 			break;
 		case alu::or_:
 			ret = *dest | src;
@@ -308,6 +410,24 @@ struct cpu6502 {
 		case alu::load:
 			ret = src;
 			break;
+		case alu::asl:
+			ret = *dest << 1;
+			setC = true;
+			break;
+		case alu::rol:
+			ret = *dest << 1;
+			ret |= 0x1 & c;
+			setC = true;
+			break;
+		case alu::lsr:
+			ret = *dest >> 1;
+			c = 0x1 & *dest;
+			break;
+		case alu::ror:
+			ret = *dest >> 1;
+			ret |= (c & 0x1) << 7;
+			c = 0x1 & *dest;
+			break;
 		default:
 			ASSERT(false, "Unimplemented ALU operation %d", op);
 			break;
@@ -319,12 +439,19 @@ struct cpu6502 {
 			n = sign8(a);
 			z = a == 0;
 		}
-		if (setCV) {
+		if (setC)
 			c = ret > 0xff;
+
+		if (setV)
 			// overflow only occurs when both inputs are the same sign, and the output is a different sign
 			v = sign8(*dest) == sign8(src) ? sign8(ret) != sign8(*dest) : 0;
-		}
+	}
 
+	void execute(op::op_type_t op) {
+		switch (op) {
+		default:
+			ASSERT(false, "Unimplemented instruction %d", op);
+		}
 	}
 
 	void init() {
@@ -340,22 +467,23 @@ struct cpu6502 {
 			// a = x = y = pc = s = p = 0;
 
 			clear_uop_queue();
-			queue_uop(READ_MEM, 0xfffc);
-			queue_uop(WRITE_PCL);
-			queue_uop(READ_MEM, 0xfffd);
-			queue_uop(WRITE_PCH);
-			queue_uop(FETCH);
+			queue_uop(READ_MEM, mem, 0xfffc);
+			queue_uop(MOV, pcl, mem);
+			queue_uop(READ_MEM, mem, 0xfffd);
+			queue_uop(MOV, pch, mem);
 			return;
 		}
 
-		ASSERT(uop_num > 0, "No uops to execute!");
-
 		bool end_cycle = false;
 		while (!end_cycle) {
+			if (uop_num == 0)
+				queue_uop(FETCH, mem);
+
 			uop u = pop_uop();
 			LOG(Log::INFO, cpuChan, "uOP execute: %d (data %d)", u.uop_id, u.data);
 			switch (u.uop_id) {
 			case READ_MEM:
+				ASSERT(u.target == mem, "READ_MEM must read into mem");
 				pinout.a = u.data;
 				pinout.rw = RW_READ;
 				end_cycle = true;
@@ -367,37 +495,54 @@ struct cpu6502 {
 				WRITE_HIGH_BYTE(pc, pinout.d);
 				break;
 			case FETCH:
+				ASSERT(u.target == mem, "FETCH must fetch from mem")
 				LOG(Log::INFO, cpuChan, "Instruction fetch: %x", pc);
 				fetch_pc_byte();
-				queue_uop(DECODE);
+				queue_uop(DECODE, mem);
 				break;
 			case DECODE:
-				LOG(Log::INFO, cpuChan, "Instruction decode: %x", pinout.d);
-				decode(pinout.d);
-				queue_uop(FETCH);
+				ASSERT(u.target == mem, "DECODE must decode from memory");
+				LOG(Log::INFO, cpuChan, "Instruction decode: %x", get_val(u.target));
+				decode(get_val(u.target));
 				break;
 
-			case OR_A:
-				alu_op(alu::or_, &a, pinout.d);
+			case OR:
+				alu_op(alu::or_, get_target(u.target), get_val(u.src));
 				break;
-			case AND_A:
-				alu_op(alu::and_, &a, pinout.d);
+			case AND:
+				alu_op(alu::and_, get_target(u.target), get_val(u.src));
 				break;
-			case XOR_A:
-				alu_op(alu::xor_, &a, pinout.d);
+			case XOR:
+				alu_op(alu::xor_, get_target(u.target), get_val(u.src));
 				break;
-			case ADC_A:
-				alu_op(alu::adc, &a, pinout.d);
+			case ADC:
+				alu_op(alu::adc, get_target(u.target), get_val(u.src));
 				break;
-			case SBC_A:
-				alu_op(alu::sbc, &a, pinout.d);
+			case SBC:
+				alu_op(alu::sbc, get_target(u.target), get_val(u.src));
 				break;
-			case STORE_A:
-				pinout.d = a;
+			case MOV:
+				if (u.target == A)
+					// So flags are set
+					alu_op(alu::load, get_target(u.target), get_val(u.src));
+				else
+					*get_target(u.target) = get_val((uop_target)u.data);
 				break;
-			case LOAD_A:
-				alu_op(alu::load, &a, pinout.d);
+			case ASL:
+				alu_op(alu::asl, get_target(u.target), get_val(u.src));
+			case ROL:
+				alu_op(alu::rol, get_target(u.target), get_val(u.src));
+			case LSR:
+				alu_op(alu::lsr, get_target(u.target), get_val(u.src));
+			case ROR:
+				alu_op(alu::ror, get_target(u.target), get_val(u.src));
+			case DEC:
+				alu_op(alu::dec, get_target(u.target), get_val(u.src));
+			case INC:
+				alu_op(alu::inc, get_target(u.target), get_val(u.src));
+			case NOP:
 				break;
+
 			default:
 				ASSERT(false, "Unimplemented uop %d", u.uop_id);
 				break;
