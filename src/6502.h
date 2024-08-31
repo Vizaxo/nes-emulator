@@ -466,8 +466,92 @@ struct cpu6502 {
 		queue_uop(INC16, pc16);
 	}
 
+	str print_op_type(op::op_type_t op_type) {
+		switch (op_type) {
+		case op::ORA: return "ORA";
+		case op::AND: return "AND";
+		case op::EOR: return "EOR";
+		case op::ADC: return "ADC";
+		case op::STA: return "STA";
+		case op::LDA: return "LDA";
+		case op::CMP: return "CMP";
+		case op::SBC: return "SBC";
+		case op::ASL: return "ASL";
+		case op::ROL: return "ROL";
+		case op::LSR: return "LSR";
+		case op::ROR: return "ROR";
+		case op::STX: return "STX";
+		case op::LDX: return "LDX";
+		case op::STY: return "STY";
+		case op::LDY: return "LDY";
+		case op::DEC: return "DEC";
+		case op::INC: return "INC";
+		case op::BIT: return "BIT";
+		case op::JMP: return "JMP";
+		case op::CPY: return "CPY";
+		case op::CPX: return "CPX";
+		case op::BPL: return "BPL";
+		case op::BMI: return "BMI";
+		case op::BVC: return "BVC";
+		case op::BVS: return "BVS";
+		case op::BCC: return "BCC";
+		case op::BCS: return "BCS";
+		case op::BNE: return "BNE";
+		case op::BEQ: return "BEQ";
+		case op::BRK: return "BRK";
+		case op::JSR: return "JSR";
+		case op::RTI: return "RTI";
+		case op::RTS: return "RTS";
+		case op::PHP: return "PHP";
+		case op::PLP: return "PLP";
+		case op::PHA: return "PHA";
+		case op::PLA: return "PLA";
+		case op::DEY: return "DEY";
+		case op::TAY: return "TAY";
+		case op::INY: return "INY";
+		case op::INX: return "INX";
+		case op::CLC: return "CLC";
+		case op::SEC: return "SEC";
+		case op::CLI: return "CLI";
+		case op::SEI: return "SEI";
+		case op::TYA: return "TYA";
+		case op::CLV: return "CLV";
+		case op::CLD: return "CLD";
+		case op::SED: return "SED";
+		case op::TXA: return "TXA";
+		case op::TXS: return "TXS";
+		case op::TAX: return "TAX";
+		case op::TSX: return "TSX";
+		case op::DEX: return "DEX";
+		case op::NOP: return "NOP";
+		case op::NOT_IMPLEMENTED: return "NOT_IMPLEMENTED";
+		default: ASSERT(false, "Unimplemented print for op type %d", op_type);
+		}
+	}
+
+	str print_addr_mode(op::addr_mode_t addr_mode) {
+		switch(addr_mode) {
+		case op::A: return "A";
+		case op::abs: return "abs";
+		case op::absX: return "absX";
+		case op::absY: return "absY";
+		case op::imm: return "imm";
+		case op::impl: return "impl";
+		case op::ind: return "ind";
+		case op::Xind: return "Xind";
+		case op::indY: return "indY";
+		case op::rel: return "rel";
+		case op::zpg: return "zpg";
+		case op::zpgX: return "zpgX";
+		case op::zpgY: return "zpgY";
+		case op::NOT_IMPLEMENTED_ADDR: return "NOT_IMPLEMENTED_ADDR";
+		default: ASSERT(false, "Unimplemented print for addr mode %d", addr_mode);
+		}
+	}
+
 	void decode(u8 opcode) {
 		op instruction = opcode_table[opcode];
+		LOG(Log::INFO, cpuChan, "%04x:\t%02x\t%s %s", pc-1, opcode, print_op_type(instruction.op_type).s, print_addr_mode(instruction.addr_mode).s);
 
 		// Handle jumps first because addressing modes behave slightly differently
 		switch (instruction.op_type) {
@@ -875,15 +959,15 @@ struct cpu6502 {
 				break;
 			case FETCH:
 				ASSERT(u.target == mem, "FETCH must fetch from mem")
-				LOG(Log::INFO, cpuChan, "Instruction fetch: %x", pc);
 				fetch_pc_byte();
 				queue_uop(DECODE, mem);
 				break;
 			case DECODE:
+			{
 				ASSERT(u.target == mem, "DECODE must decode from memory");
-				LOG(Log::INFO, cpuChan, "Instruction decode: %x", get_val(u.target));
 				decode(get_val(u.target));
 				break;
+			}
 			case SINGLE_BYTE_INS_DELAY:
 				end_cycle = true;
 				break;

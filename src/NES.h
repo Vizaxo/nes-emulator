@@ -37,7 +37,6 @@ struct NES {
 	}
 
 	inline void tick() {
-		LOG(Log::INFO, nesChan, "NES tick");
 		cpu.pinout.resN = true;
 		cpu.tick();
 
