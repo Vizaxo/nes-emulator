@@ -473,12 +473,14 @@ struct cpu6502 {
 			case op::abs:
 				fetch_pc_byte();
 				queue_uop(MOV, tmp, mem);
+				fetch_pc_byte();
 				queue_uop(MOV, tmp_high, mem);
 				queue_uop(MOV16, pc16, tmp16);
 				break;
 			case op::ind:
 				fetch_pc_byte();
 				queue_uop(MOV, tmp, mem);
+				fetch_pc_byte();
 				queue_uop(MOV, tmp_high, mem);
 				queue_uop(READ_MEM, mem, tmp16);
 				queue_uop(MOV, tmp_bl, mem);
