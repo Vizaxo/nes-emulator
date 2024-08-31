@@ -51,6 +51,8 @@ struct Memory {
 
 struct cpu6502 {
 	Memory* debug_mem; // Should only be used for debug access
+	i32 debug_break_addr = 0x0400;
+	bool debug_single_stepping = false;
 
 	u8 a;
 	u8 x;
@@ -665,7 +667,6 @@ struct cpu6502 {
 
 	void decode(u8 opcode) {
 		op instruction = opcode_table[opcode];
-		print_instruction(pc-1);
 
 		// Handle jumps first because addressing modes behave slightly differently
 		switch (instruction.op_type) {
@@ -1073,6 +1074,18 @@ struct cpu6502 {
 				break;
 			case FETCH:
 				ASSERT(u.target == mem, "FETCH must fetch from mem")
+				if (pc == debug_break_addr && !debug_single_stepping) {
+					LOG(Log::INFO, cpuChan, "Breakpoint $%04x hit", debug_break_addr);
+					print_instruction(pc);
+					debug_single_stepping = true;
+				}
+
+				if (debug_single_stepping) {
+					break;
+				}
+
+				print_instruction(pc);
+
 				fetch_pc_byte();
 				queue_uop(DECODE, mem);
 				break;
