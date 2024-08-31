@@ -57,7 +57,8 @@ struct cpu6502 {
 		u16 pc;
 	};
 	u8 s; // pointer to low byte of stack addr
-	u8 tmp_internal;
+	u16 tmp_internal;
+	u16 tmp_b;
 
 	union {
 		u8 p; // processor flags
@@ -90,17 +91,20 @@ struct cpu6502 {
 
 	enum UOP_ID {
 		READ_MEM,
-		WRITE_PCL,
-		WRITE_PCH,
+		READ_ZPG,
+		LDIMM16,
 
 		FETCH,
 		DECODE,
+		SINGLE_BYTE_INS_DELAY,
 
 		// EXECUTE uOPs
 		OR,
 		AND,
 		XOR,
 		ADC,
+		ADC16_NOFLAG,
+		ADD_NOFLAG,
 		MOV,
 		CMP,
 		SBC,
@@ -110,15 +114,23 @@ struct cpu6502 {
 		ROR,
 		DEC,
 		INC,
+		INC16,
+		INC_NOFLAG,
 		NOP,
 	};
 	enum uop_target {
 		A,
 		X,
 		Y,
+		pc16,
 		pcl,
 		pch,
 		tmp,
+		tmp_high,
+		tmp16,
+		tmp_bl,
+		tmp_bh,
+		tmp_b16,
 		mem,
 	};
 
@@ -354,6 +366,9 @@ struct cpu6502 {
 	}
 
 	void queue_uop(enum UOP_ID uid, uop_target target, uop_target src) {
+		// uOP validation
+		if (uid==READ_MEM) ASSERT(target == mem, "READ_MEM target must be mem");
+
 		uop u = { uid, target };
 		u.src = src;
 		queue_uop(u);
@@ -373,6 +388,23 @@ struct cpu6502 {
 		uop_num = 0;
 	}
 
+	u16* get_target_16(uop_target target) {
+		switch (target) {
+		case pc16:
+			return &pc;
+		case tmp16:
+			return &tmp_internal;
+		case tmp_b16:
+			return &tmp_b;
+		default:
+			ASSERT(false, "Invalid 16-bit target"); return nullptr;
+		}
+	}
+
+	u16 get_val_16(uop_target target) {
+		return *get_target_16(target);
+	}
+
 	u8* get_target(uop_target target) {
 		switch (target) {
 		case A: return &a;
@@ -380,7 +412,10 @@ struct cpu6502 {
 		case Y: return &y;
 		case pch: return ((u8*)&pc)+1;
 		case pcl: return (u8*)&pc; // Assuming little endian
-		case tmp: return &tmp_internal; // ?
+		case tmp_high: return ((u8*)&tmp_internal)+1;
+		case tmp: return (u8*)&tmp_internal;
+		case tmp_bl: return ((u8*)&tmp_b)+1;
+		case tmp_bh: return (u8*)&tmp_b;
 		case mem: return &pinout.d;
 		default: ASSERT(false, "Target not implemented"); return nullptr;
 		}
@@ -391,18 +426,97 @@ struct cpu6502 {
 	}
 
 	void fetch_pc_byte() {
-		queue_uop(READ_MEM, mem, pc);
-		++pc;
+		queue_uop(READ_MEM, mem, pc16);
+		queue_uop(INC16, pc16);
 	}
 
 	void decode(u8 opcode) {
 		op instruction = opcode_table[opcode];
 
 		switch (instruction.addr_mode) {
+		case op::A:
+			queue_uop(SINGLE_BYTE_INS_DELAY, (uop_target)0x0, 0x0);
+			break;
+		case op::abs:
+			fetch_pc_byte();
+			queue_uop(MOV, tmp, mem);
+			fetch_pc_byte();
+			queue_uop(MOV, tmp_high, mem);
+			queue_uop(READ_MEM, mem, tmp16);
+			break;
+		case op::absX:
+			fetch_pc_byte();
+			queue_uop(MOV, tmp, mem);
+			fetch_pc_byte();
+			queue_uop(MOV, tmp_high, mem);
+			queue_uop(ADC16_NOFLAG, tmp16, x);
+			queue_uop(READ_MEM, mem, tmp16);
+			break;
+		case op::absY:
+			fetch_pc_byte();
+			queue_uop(MOV, tmp, mem);
+			fetch_pc_byte();
+			queue_uop(MOV, tmp_high, mem);
+			queue_uop(ADC16_NOFLAG, tmp16, x);
+			queue_uop(READ_MEM, mem, tmp16);
+			break;
 		case op::imm:
 			fetch_pc_byte();
 			break;
 		case op::impl:
+			queue_uop(SINGLE_BYTE_INS_DELAY, (uop_target)0x0, 0x0);
+			break;
+		case op::ind:
+			fetch_pc_byte();
+			queue_uop(MOV, tmp, mem);
+			fetch_pc_byte();
+			queue_uop(MOV, tmp_high, mem);
+			queue_uop(READ_MEM, mem, tmp16);
+			queue_uop(MOV, tmp16, mem);
+			queue_uop(READ_MEM, mem, tmp16); // indirection
+			break;
+		case op::Xind:
+			fetch_pc_byte();
+			queue_uop(MOV, tmp, mem);
+			queue_uop(ADD_NOFLAG, tmp, x);
+			queue_uop(READ_ZPG, mem, tmp);
+			queue_uop(MOV, tmp_bl, mem);
+			queue_uop(INC_NOFLAG, tmp);
+			queue_uop(READ_ZPG, mem, tmp);
+			queue_uop(MOV, tmp_bh, mem);
+			queue_uop(READ_MEM, mem, tmp_b16);
+			break;
+		case op::indY:
+			fetch_pc_byte();
+			queue_uop(MOV, tmp, mem);
+			queue_uop(READ_ZPG, mem, tmp);
+			queue_uop(MOV, tmp_bl, mem);
+			queue_uop(INC_NOFLAG, tmp);
+			queue_uop(READ_ZPG, mem, tmp);
+			queue_uop(MOV, tmp_bh, mem);
+			queue_uop(ADC16_NOFLAG, tmp_b16, y);
+			queue_uop(READ_MEM, mem, tmp_b16);
+			break;
+		case op::rel:
+			fetch_pc_byte();
+			ASSERT(false, "TODO: implement relative jump addressing");
+			break;
+		case op::zpg:
+			fetch_pc_byte();
+			queue_uop(MOV, tmp, mem);
+			queue_uop(READ_ZPG, mem, tmp);
+			break;
+		case op::zpgX:
+			fetch_pc_byte();
+			queue_uop(MOV, tmp, mem);
+			queue_uop(ADD_NOFLAG, tmp, x);
+			queue_uop(READ_ZPG, mem, tmp);
+			break;
+		case op::zpgY:
+			fetch_pc_byte();
+			queue_uop(MOV, tmp, mem);
+			queue_uop(ADD_NOFLAG, tmp, y);
+			queue_uop(READ_ZPG, mem, tmp);
 			break;
 		default:
 			ASSERT(false, "Unimplemented addressing mode %d (opcode %x)", instruction.addr_mode, opcode);
@@ -482,7 +596,7 @@ struct cpu6502 {
 		};
 	};
 
-	void alu_op(alu::alu_op op, u8* dest, u8 src) {
+	void alu_op(alu::alu_op op, u8* dest, u8 src, bool setflags = true) {
 		u16 ret;
 		bool setNZ = true;
 		bool setC = false;
@@ -542,6 +656,9 @@ struct cpu6502 {
 
 		*dest = (u8)(ret & 0xff);
 
+		if (!setflags)
+			return;
+
 		if (setNZ) {
 			n = sign8(a);
 			z = a == 0;
@@ -574,9 +691,11 @@ struct cpu6502 {
 			// a = x = y = pc = s = p = 0;
 
 			clear_uop_queue();
-			queue_uop(READ_MEM, mem, 0xfffc);
+			queue_uop(LDIMM16, tmp16, 0xfffc);
+			queue_uop(READ_MEM, mem, tmp16);
 			queue_uop(MOV, pcl, mem);
-			queue_uop(READ_MEM, mem, 0xfffd);
+			queue_uop(LDIMM16, tmp16, 0xfffd);
+			queue_uop(READ_MEM, mem, tmp16);
 			queue_uop(MOV, pch, mem);
 			return;
 		}
@@ -589,17 +708,20 @@ struct cpu6502 {
 			uop u = pop_uop();
 			LOG(Log::INFO, cpuChan, "uOP execute: %d (data %d)", u.uop_id, u.data);
 			switch (u.uop_id) {
+			case LDIMM16:
+				*get_target_16(u.target) = u.data;
+				break;
 			case READ_MEM:
 				ASSERT(u.target == mem, "READ_MEM must read into mem");
-				pinout.a = u.data;
+				pinout.a = get_val_16(u.src);
 				pinout.rw = RW_READ;
 				end_cycle = true;
 				break;
-			case WRITE_PCL:
-				WRITE_LOW_BYTE(pc, pinout.d);
-				break;
-			case WRITE_PCH:
-				WRITE_HIGH_BYTE(pc, pinout.d);
+			case READ_ZPG:
+				ASSERT(u.target == mem, "READ_ZPG must read into mem");
+				pinout.a = (u16)get_val(u.src);
+				pinout.rw = RW_READ;
+				end_cycle = true;
 				break;
 			case FETCH:
 				ASSERT(u.target == mem, "FETCH must fetch from mem")
@@ -612,7 +734,9 @@ struct cpu6502 {
 				LOG(Log::INFO, cpuChan, "Instruction decode: %x", get_val(u.target));
 				decode(get_val(u.target));
 				break;
-
+			case SINGLE_BYTE_INS_DELAY:
+				end_cycle = true;
+				break;
 			case OR:
 				alu_op(alu::or_, get_target(u.target), get_val(u.src));
 				break;
@@ -621,6 +745,18 @@ struct cpu6502 {
 				break;
 			case XOR:
 				alu_op(alu::xor_, get_target(u.target), get_val(u.src));
+				break;
+			case ADC16_NOFLAG:
+			{
+				u16 tgt = get_val_16(u.target);
+				*get_target_16(u.target) = get_val_16(u.target) + get_val(u.src);
+				if (tgt & 0xff00 != get_val_16(u.target) & 0xff00)
+					// High byte affected, takes an extra cycle
+					end_cycle = true;
+				break;
+			}
+			case ADD_NOFLAG:
+				*get_target(u.target) = get_val(u.target) + get_val(u.src);
 				break;
 			case ADC:
 				alu_op(alu::adc, get_target(u.target), get_val(u.src));
@@ -637,19 +773,30 @@ struct cpu6502 {
 				break;
 			case ASL:
 				alu_op(alu::asl, get_target(u.target), get_val(u.src));
+				break;
 			case ROL:
 				alu_op(alu::rol, get_target(u.target), get_val(u.src));
+				break;
 			case LSR:
 				alu_op(alu::lsr, get_target(u.target), get_val(u.src));
+				break;
 			case ROR:
 				alu_op(alu::ror, get_target(u.target), get_val(u.src));
+				break;
 			case DEC:
 				alu_op(alu::dec, get_target(u.target), get_val(u.src));
+				break;
 			case INC:
 				alu_op(alu::inc, get_target(u.target), get_val(u.src));
+				break;
+			case INC16:
+				++(*get_target_16(u.target));
+				break;
+			case INC_NOFLAG:
+				++(*get_target(u.target));
+				break;
 			case NOP:
 				break;
-
 			default:
 				ASSERT(false, "Unimplemented uop %d", u.uop_id);
 				break;
