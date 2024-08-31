@@ -52,6 +52,9 @@ struct Memory {
 
 struct cpu6502 {
 	Memory* debug_mem; // Should only be used for debug access
+
+	bool fetching = false;
+	u16 fetch_addr = 0x0000;
 	i32 debug_break_addr = 0x0400;
 	bool debug_single_stepping = false;
 
@@ -1062,6 +1065,8 @@ struct cpu6502 {
 			return;
 		}
 
+		fetching = false;
+
 		bool end_cycle = false;
 		while (!end_cycle) {
 			if (uop_num == 0)
@@ -1099,6 +1104,9 @@ struct cpu6502 {
 
 				print_instruction(pc, debug_mem);
 
+				fetching = true;
+				fetch_addr = pc;
+				end_cycle = true;
 				fetch_pc_byte();
 				queue_uop(DECODE, mem);
 				break;

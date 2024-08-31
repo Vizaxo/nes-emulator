@@ -13,6 +13,17 @@ struct App : Application {
 
 	NES nes;
 
+	bool single_step_debugging = true;
+	bool first_tick = true;
+	u16 single_step_addr = 0x0000;
+
+	struct disas_entry {
+		bool breakpoint;
+		u8 ins_len;
+		str disas;
+	};
+	disas_entry disassembly[Memory::MEM_MAX];
+
 	void init(RefPtr<Renderer> renderer, PAL::WindowHandle h) override {
 		LOG(Log::INFO, appChan, "Initialized");
 		scene.camera.cam2d = { {0.f,0.f}, 1.f, h };
@@ -21,8 +32,28 @@ struct App : Application {
 		nes.init();
 	}
 
+	void build_disas_table() {
+		for (int addr = 0; addr < Memory::MEM_MAX; ++addr) {
+			Product<str, u8> ret = cpu6502::disassemble_instruction(addr, &nes.mem);
+			disassembly[addr] = {false, snd(ret), fst(ret)};
+		}
+	}
+
 	void tick(float deltaTime) override {
-		nes.tick();
+		if (single_step_debugging && !first_tick)
+			return;
+
+		first_tick = false;
+		for (int i = 0; i < 100; ++i) {
+			nes.tick();
+			if (nes.cpu.fetching) {
+				if (disassembly[nes.cpu.fetch_addr].breakpoint) {
+					single_step_debugging = true;
+					single_step_addr = nes.cpu.fetch_addr;
+				}
+			}
+		}
+		build_disas_table();
 	}
 
 	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override
@@ -32,9 +63,10 @@ struct App : Application {
 
 		u32 addr = 0;
 		while (addr < Memory::MEM_MAX) {
-			Product<str, u8> ret = cpu6502::disassemble_instruction(addr, &nes.mem);
-			ImGui::Text("%s", fst(ret).s);
-			addr += snd(ret);
+			disas_entry& ret = disassembly[addr];
+			//ImGui::TextUnformatted(ret.breakpoint ? "o\t" : " \t");
+			ImGui::TextUnformatted(ret.disas.s);
+			addr += ret.ins_len;
 		}
 		ImGui::End();
 	}
