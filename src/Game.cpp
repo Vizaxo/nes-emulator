@@ -15,7 +15,7 @@ struct App : Application {
 
 	bool single_step_debugging = true;
 	bool first_tick = true;
-	u16 single_step_addr = 0x0000;
+	u16 executing_addr = 0x0000;
 
 	struct disas_entry {
 		bool breakpoint;
@@ -46,10 +46,10 @@ struct App : Application {
 		first_tick = false;
 		for (int i = 0; i < 100; ++i) {
 			nes.tick();
+			executing_addr = nes.cpu.fetch_addr;
 			if (nes.cpu.fetching) {
 				if (disassembly[nes.cpu.fetch_addr].breakpoint) {
 					single_step_debugging = true;
-					single_step_addr = nes.cpu.fetch_addr;
 				}
 			}
 		}
@@ -64,9 +64,10 @@ struct App : Application {
 		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
 			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable
 			| ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable;
-		ImGui::BeginTable("Disas", 2, table_flags);
+		ImGui::BeginTable("Disas", 3, table_flags);
 		ImGui::TableSetupScrollFreeze(0, 1); // Pin top row
-		ImGui::TableSetupColumn("Break");
+		ImGui::TableSetupColumn("brk", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20.f);
+		ImGui::TableSetupColumn("pc", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20.f);
 		ImGui::TableSetupColumn("Disas");
 		ImGui::TableHeadersRow();
 
@@ -99,7 +100,11 @@ struct App : Application {
 					ImGui::TableNextRow();
 					ImGui::TableSetColumnIndex(0);
 					ImGui::TextUnformatted(ret.breakpoint ? "o\t" : " \t");
-					ImGui::TableSetColumnIndex(1);
+					if (addr == executing_addr) {
+						ImGui::TableSetColumnIndex(1);
+						ImGui::TextUnformatted("->");
+					}
+					ImGui::TableSetColumnIndex(2);
 					ImGui::TextUnformatted(ret.disas.s);
 					addr += ret.ins_len;
 				}
