@@ -170,6 +170,10 @@ struct cpu6502 {
 		return (p >> get_flag_bit(f)) & 1u;
 	}
 
+	u8 inv_flag(u8 v) {
+		return v ^ 0x01;
+	}
+
 	void set_flag(flag f, bool set) {
 		if (set)
 			p = p | (1 << get_flag_bit(f));
@@ -1032,20 +1036,18 @@ struct cpu6502 {
 		};
 	};
 
-	void alu_op(alu::alu_op op, u8* dest, u8 src, bool setflags = true, bool write_res = true) {
+	void alu_op(alu::alu_op op, u8* dest, u8 src, bool can_set_v = true, bool write_res = true) {
 		u16 ret;
 		bool setNZ = true;
 		bool setC = false;
 		bool setV = false;
 
 		switch (op) {
+		case alu::sbc:
+			src = ~src;
+			// fallthrough to adc
 		case alu::adc:
 			ret = (u16)(*dest) + (u16)get_flag(flag::C) + (u16)src;
-			setC = true;
-			setV = true;
-			break;
-		case alu::sbc:
-			ret = (u16)(*dest) - (u16)get_flag(flag::C) - (u16)src;
 			setC = true;
 			setV = true;
 			break;
@@ -1094,19 +1096,19 @@ struct cpu6502 {
 			break;
 		}
 
-		if (setflags && setV)
+		if (can_set_v && setV)
 			// overflow only occurs when both inputs are the same sign, and the output is a different sign
 			set_flag(flag::V, sign8(*dest) == sign8(src) ? sign8(ret) != sign8(*dest) : 0);
 
 		if (write_res)
 			*dest = (u8)(ret & 0xff);
 
-		if (setflags && setNZ) {
-			set_flag(flag::N, sign8(*dest));
-			set_flag(flag::Z, *dest == 0);
+		if (setNZ) {
+			set_flag(flag::N, sign8(ret));
+			set_flag(flag::Z, (0xff & ret) == 0);
 		}
 
-		if (setflags && setC)
+		if (setC)
 			set_flag(flag::C, ret > 0xff);
 	}
 
@@ -1254,7 +1256,8 @@ struct cpu6502 {
 			case NOP:
 				break;
 			case CMP:
-				alu_op(alu::sub, get_target(u.target), get_val(u.src), true, false);
+				set_flag(flag::C, true);
+				alu_op(alu::sbc, get_target(u.target), get_val(u.src), false, false);
 				break;
 			case CLEAR_FLAG:
 				set_flag((flag)u.data, false);
