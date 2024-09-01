@@ -59,8 +59,8 @@ struct App : Application {
 			u8 len = cpu6502::get_ins_length(addr, &nes.mem);
 			ins_metadata[addr].ins_len = len;
 			ins_metadata[addr].ins_bytes[0] = nes.mem[addr];
-			ins_metadata[addr].ins_bytes[1] = nes.mem[addr+2];
-			ins_metadata[addr].ins_bytes[2] = nes.mem[addr+3];
+			ins_metadata[addr].ins_bytes[1] = nes.mem[addr+1];
+			ins_metadata[addr].ins_bytes[2] = nes.mem[addr+2];
 		}
 	}
 
