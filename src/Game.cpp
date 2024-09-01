@@ -320,6 +320,13 @@ struct App : Application {
 			ImGui::InputScalar("##dec", ImGuiDataType_U8, regs[i].reg, 0, 0, "%d");
 			ImGui::TableSetColumnIndex(2);
 			ImGui::InputScalar("##hex", ImGuiDataType_U8, regs[i].reg, 0, 0, "%02x");
+			if (i == 3) {
+				ImGui::TableSetColumnIndex(3);
+				if (ImGui::Button("Focus")) {
+					mem_scroll_to_focus = true;
+					mem_focus_addr = 0x100 + nes.cpu.s;
+				}
+			}
 			ImGui::PopID();
 		}
 		ImGui::PushID(5);
