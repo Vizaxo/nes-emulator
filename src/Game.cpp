@@ -362,6 +362,8 @@ struct App : Application {
 	void draw_ins_history() {
 		ImGui::Begin("Instruction history");
 
+		static bool scroll_to_end = true;
+		bool scroll_to_end_updated_this_frame = ImGui::Checkbox("Scroll to end", &scroll_to_end);
 		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
 			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable;
 
@@ -389,6 +391,19 @@ struct App : Application {
 				ImGui::TableSetColumnIndex(2);
 				ImGui::Text("%s", cpu6502::disassemble_instruction(entry.addr, &nes.mem).s);
 			}
+		}
+
+		float scroll_y = 0;
+		scroll_y = ImGui::GetScrollY();
+		static float last_requested_scroll_y = scroll_y;
+
+		if (!scroll_to_end_updated_this_frame && scroll_y != last_requested_scroll_y)
+			scroll_to_end = false;
+
+		if (scroll_to_end) {
+			int scroll_to = ImGui::GetScrollMaxY();
+			ImGui::SetScrollY(scroll_to);
+			last_requested_scroll_y = scroll_to;
 		}
 
 		ImGui::EndTable();
