@@ -924,7 +924,7 @@ struct cpu6502 {
 			break;
 		case op::DEC:
 			queue_uop(DEC, tmp, mem);
-			queue_uop(MOV, mem, tmp);
+			queue_uop(WRITE_MEM, tmp_b16, tmp);
 			break;
 		case op::DEX:
 			queue_uop(DEC, X, X);
@@ -934,7 +934,7 @@ struct cpu6502 {
 			break;
 		case op::INC:
 			queue_uop(INC, tmp, mem);
-			queue_uop(MOV, mem, tmp);
+			queue_uop(WRITE_MEM, tmp_b16, tmp);
 			break;
 		case op::INX:
 			queue_uop(INC, X, X);
@@ -1133,10 +1133,10 @@ struct cpu6502 {
 			ret = *dest ^ src;
 			break;
 		case alu::inc:
-			ret = *dest + 1;
+			ret = src + 1;
 			break;
 		case alu::dec:
-			ret = *dest - 1;
+			ret = src - 1;
 			break;
 		case alu::load:
 			ret = src;
