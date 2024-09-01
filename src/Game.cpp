@@ -18,7 +18,15 @@ struct App : Application {
 	u16 executing_addr = 0x0000;
 
 	bool mem_scroll_to_focus = 0;
-	u16 mem_focus_addr;
+	u16 mem_focus_addr  = 0x0;
+	u16 data_break_addr = 0x0;
+	u8 data_break_val;
+	enum data_break_mode_t {
+		none = 0x0,
+		read = 0x1,
+		write = 0x2,
+		specific_val = 0x4,
+	} data_break_mode = none;
 
 	struct disas_entry {
 		bool breakpoint;
@@ -74,6 +82,17 @@ struct App : Application {
 		// Execute until the next instruction is fetched
 		do {
 			nes.tick();
+
+			// Data break
+			if (nes.cpu.pinout.a == data_break_addr) {
+				if ((nes.cpu.pinout.rw == RW_READ && data_break_mode & read)
+					|| (nes.cpu.pinout.rw == RW_WRITE && data_break_mode & write)) {
+					if (!(data_break_mode & specific_val) || nes.mem.pinout.d == data_break_val) {
+						single_step_debugging = true;
+						break;
+					}
+				}
+			}
 		} while (!nes.cpu.fetching);
 
 		executing_addr = nes.cpu.pc;
@@ -303,6 +322,20 @@ struct App : Application {
 		ImGui::Begin("Memory");
 
 		mem_scroll_to_focus |= ImGui::InputScalar("Focus addr", ImGuiDataType_U16, &mem_focus_addr, 0, 0, "%04x");
+		ImGui::InputScalar("Data break", ImGuiDataType_U16, &data_break_addr, 0, 0, "%04x");
+		bool data_break_read = data_break_mode & read;
+		ImGui::SameLine();
+		ImGui::Checkbox("R", &data_break_read);
+		data_break_mode = (data_break_mode_t)((data_break_mode & ~read) | (data_break_read ? read : none));
+		bool data_break_write = data_break_mode & write;
+		ImGui::SameLine();
+		ImGui::Checkbox("W", &data_break_write);
+		data_break_mode = (data_break_mode_t)((data_break_mode & ~write) | (data_break_write ? write : none));
+		ImGui::InputScalar("##breakval", ImGuiDataType_U8, &data_break_val, 0, 0, "%02x");
+		ImGui::SameLine();
+		bool data_break_val_only = data_break_mode & specific_val;
+		ImGui::Checkbox("Break on val only", &data_break_val_only);
+		data_break_mode = (data_break_mode_t)((data_break_mode & ~specific_val) | (data_break_val_only ? specific_val : none));
 
 		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
 			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable;
