@@ -38,6 +38,7 @@ struct App : Application {
 		nes.reset();
 		executing_addr = nes.cpu.pc;
 		single_step_debugging = true;
+		single_step();
 		ins_history.reset();
 	}
 

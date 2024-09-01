@@ -39,6 +39,7 @@ struct NES {
 
 	inline void tick() {
 		cpu.pinout.resN = true;
+		cpu.fetching = false;
 		cpu.tick();
 
 		mem.pinout.a = cpu.pinout.a;
