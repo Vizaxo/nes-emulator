@@ -125,6 +125,7 @@ struct cpu6502 {
 		LSR,
 		ROR,
 		DEC,
+		DEC_NOFLAG,
 		INC,
 		INC16,
 		INC_NOFLAG,
@@ -1024,7 +1025,7 @@ struct cpu6502 {
 			break;
 		case op::PHA:
 			queue_uop(WRITE_MEM, stack, A);
-			queue_uop(DEC, S, S);
+			queue_uop(DEC_NOFLAG, S, S);
 			break;
 		case op::PLA:
 			queue_uop(INC, S, S);
@@ -1034,7 +1035,7 @@ struct cpu6502 {
 		case op::PHP:
 			queue_uop(SET_FLAG, (uop_target)0xff, flag::B);
 			queue_uop(WRITE_MEM, stack, P);
-			queue_uop(DEC, S, S);
+			queue_uop(DEC_NOFLAG, S, S);
 			break;
 		case op::PLP:
 			queue_uop(INC, S, S);
@@ -1271,6 +1272,9 @@ struct cpu6502 {
 				alu_op(alu::ror, get_target(u.target), get_val(u.src));
 				break;
 			case DEC:
+				alu_op(alu::dec, get_target(u.target), get_val(u.src));
+				break;
+			case DEC_NOFLAG:
 				alu_op(alu::dec, get_target(u.target), get_val(u.src), false, true, false);
 				break;
 			case INC:
