@@ -346,8 +346,8 @@ struct cpu6502 {
 
 		opcode_table[0x24] = {op::BIT, op::zpg};
 		opcode_table[0x2c] = {op::BIT, op::abs};
-		opcode_table[0x4c] = {op::JMP, op::abs};
-		opcode_table[0x6c] = {op::JMP, op::ind};
+		opcode_table[0x4c] = {op::JMP, op::abs, op::no_read};
+		opcode_table[0x6c] = {op::JMP, op::ind, op::no_read};
 		opcode_table[0x84] = {op::STY, op::zpg, op::no_read};
 		opcode_table[0x8C] = {op::STY, op::abs, op::no_read};
 		opcode_table[0x94] = {op::STY, op::zpgX, op::no_read};
@@ -376,7 +376,7 @@ struct cpu6502 {
 		opcode_table[0xF0] = {op::BEQ, op::rel};
 
 		opcode_table[0x00] = {op::BRK, op::impl};
-		opcode_table[0x20] = {op::JSR, op::abs};
+		opcode_table[0x20] = {op::JSR, op::abs, op::no_read};
 		opcode_table[0x40] = {op::RTI, op::impl};
 		opcode_table[0x40] = {op::RTS, op::impl};
 
@@ -735,40 +735,6 @@ struct cpu6502 {
 		// If instruction needs a byte read (instruction.addr_behaviour == op::read_byte) it will be in mem
 		// zpg reads are in tmp_bl, with tmp_bh being zero
 
-		// Handle jumps first because addressing modes behave slightly differently
-		// TODO: should be able to reconcile this with the addition of addr_behaviour
-		switch (instruction.op_type) {
-		case op::JMP:
-			switch (instruction.addr_mode) {
-			case op::abs:
-				fetch_pc_byte();
-				queue_uop(MOV, tmp_bl, mem);
-				fetch_pc_byte();
-				queue_uop(MOV, tmp_bh, mem);
-				queue_uop(MOV16, pc16, tmp_b16);
-				break;
-			case op::ind:
-				fetch_pc_byte();
-				queue_uop(MOV, tmp, mem);
-				fetch_pc_byte();
-				queue_uop(MOV, tmp_high, mem);
-				queue_uop(READ_MEM, mem, tmp16);
-				queue_uop(MOV, tmp_bl, mem);
-				queue_uop(INC16, tmp16);
-				queue_uop(READ_MEM, mem, tmp16);
-				queue_uop(MOV, tmp_bh, mem);
-				queue_uop(MOV16, pc16, tmp_b16);
-				break;
-			default:
-				ASSERT(false, "Illegal JMP addressing mode %d", instruction.addr_mode);
-				break;
-			}
-			return; // Fully processed jump
-		default:
-			break;
-			// Fallthrough to non-jmp instructions
-		}
-
 		switch (instruction.addr_mode) {
 		case op::A:
 			queue_uop(SINGLE_BYTE_INS_DELAY, (uop_target)0x0, 0x0);
@@ -813,7 +779,10 @@ struct cpu6502 {
 			fetch_pc_byte();
 			queue_uop(MOV, tmp_high, mem);
 			queue_uop(READ_MEM, mem, tmp16);
-			queue_uop(MOV, tmp_b16, mem);
+			queue_uop(MOV, tmp_bl, mem);
+			queue_uop(INC16, tmp16, tmp16);
+			queue_uop(READ_MEM, mem, tmp16);
+			queue_uop(MOV, tmp_bh, mem);
 			if (instruction.addr_behaviour == op::read_byte)
 				queue_uop(READ_MEM, mem, tmp_b16); // indirection
 			break;
@@ -1031,6 +1000,9 @@ struct cpu6502 {
 			queue_uop(INC, S, S);
 			queue_uop(READ_MEM, mem, stack);
 			queue_uop(MOV, P, mem);
+			break;
+		case op::JMP:
+			queue_uop(MOV16, pc16, tmp_b16);
 			break;
 		default:
 			ASSERT(false, "Unimplemented instruction %d (opcode 0x%x)", instruction.op_type, opcode);
