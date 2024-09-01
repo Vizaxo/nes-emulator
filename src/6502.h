@@ -331,8 +331,17 @@ struct cpu6502 {
 					opcode_table[pattern_op.base + i * 4] = { pattern_op.op_type, group_one_addr_modes[i], pattern_op.addr_behaviour };
 				break;
 			case group_two:
-				for (int i = 0; i < 7; ++i)
-					opcode_table[pattern_op.base + i * 4] = { pattern_op.op_type, group_two_addr_modes[i], pattern_op.addr_behaviour };
+				for (int i = 0; i < 7; ++i) {
+					op::addr_mode_t addr_mode = group_two_addr_modes[i];
+					if (pattern_op.op_type == op::STX || pattern_op.op_type == op::LDX) {
+						// STX and LDX addr modes are modified to be Y
+						if (addr_mode == op::zpgX)
+							addr_mode = op::zpgY;
+						if (addr_mode == op::absX)
+							addr_mode = op::absY;
+					}
+					opcode_table[pattern_op.base + i * 4] = { pattern_op.op_type, addr_mode, pattern_op.addr_behaviour };
+				}
 				break;
 			}
 		}
