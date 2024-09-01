@@ -42,9 +42,9 @@ struct NES {
 		cpu.tick();
 
 		mem.pinout.a = cpu.pinout.a;
+		mem.pinout.rw = cpu.pinout.rw;
 		mem.tick();
 
-		mem.pinout.rw = cpu.pinout.rw;
 		if (cpu.pinout.rw == RW_READ)
 			cpu.pinout.d = mem.pinout.d;
 		else

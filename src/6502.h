@@ -99,6 +99,7 @@ struct cpu6502 {
 
 	enum UOP_ID {
 		READ_MEM,
+		WRITE_MEM,
 		READ_ZPG,
 		LDIMM16,
 
@@ -108,6 +109,7 @@ struct cpu6502 {
 		CATCH_INFINITE_LOOP,
 
 		// EXECUTE uOPs
+		SET_ZERO,
 		OR,
 		AND,
 		XOR,
@@ -260,6 +262,10 @@ struct cpu6502 {
 			zpgY,
 			NOT_IMPLEMENTED_ADDR,
 		} addr_mode;
+		enum addr_behaviour_t {
+			read_byte,
+			no_read,
+		} addr_behaviour;
 	};
 	static constexpr u16 NUM_OPCODES = 0x100;
 	static inline op opcode_table[NUM_OPCODES];
@@ -272,6 +278,7 @@ struct cpu6502 {
 		op::op_type_t op_type;
 		u8 base;
 		pattern_type_t pattern_type;
+		op::addr_behaviour_t addr_behaviour = op::read_byte;
 	};
 
 	Array<pattern_op_def> pattern_ops = {
@@ -279,7 +286,7 @@ struct cpu6502 {
 		{op::AND, 0x21, group_one},
 		{op::EOR, 0x41, group_one},
 		{op::ADC, 0x61, group_one},
-		{op::STA, 0x81, group_one},
+		{op::STA, 0x81, group_one, op::no_read},
 		{op::LDA, 0xA1, group_one},
 		{op::CMP, 0xC1, group_one},
 		{op::SBC, 0xE1, group_one},
@@ -304,17 +311,17 @@ struct cpu6502 {
 
 	void build_opcode_table() {
 		for (int i = 0; i < NUM_OPCODES; ++i)
-			opcode_table[i] = {op::NOT_IMPLEMENTED, op::A};
+			opcode_table[i] = {op::NOT_IMPLEMENTED, op::A, op::read_byte};
 
 		for (pattern_op_def pattern_op : pattern_ops) {
 			switch (pattern_op.pattern_type) {
 			case group_one:
 				for (int i = 0; i < 8; ++i)
-					opcode_table[pattern_op.base + i * 4] = { pattern_op.op_type, group_one_addr_modes[i] };
+					opcode_table[pattern_op.base + i * 4] = { pattern_op.op_type, group_one_addr_modes[i], pattern_op.addr_behaviour };
 				break;
 			case group_two:
 				for (int i = 0; i < 7; ++i)
-					opcode_table[pattern_op.base + i * 4] = { pattern_op.op_type, group_two_addr_modes[i] };
+					opcode_table[pattern_op.base + i * 4] = { pattern_op.op_type, group_two_addr_modes[i], pattern_op.addr_behaviour };
 				break;
 			}
 		}
@@ -335,9 +342,9 @@ struct cpu6502 {
 		opcode_table[0x2c] = {op::BIT, op::abs};
 		opcode_table[0x4c] = {op::JMP, op::abs};
 		opcode_table[0x6c] = {op::JMP, op::ind};
-		opcode_table[0x84] = {op::STY, op::zpg};
-		opcode_table[0x8C] = {op::STY, op::abs};
-		opcode_table[0x94] = {op::STY, op::zpgX};
+		opcode_table[0x84] = {op::STY, op::zpg, op::no_read};
+		opcode_table[0x8C] = {op::STY, op::abs, op::no_read};
+		opcode_table[0x94] = {op::STY, op::zpgX, op::no_read};
 
 		opcode_table[0xA0] = {op::LDY, op::imm};
 		opcode_table[0xA4] = {op::LDY, op::zpg};
@@ -724,7 +731,12 @@ struct cpu6502 {
 	void decode(u8 opcode) {
 		op instruction = opcode_table[opcode];
 
+		// 16-bit addresses to write to will be in tmp_b16
+		// If instruction needs a byte read (instruction.addr_behaviour == op::read_byte) it will be in mem
+		// zpg reads are in tmp_bl, with tmp_bh being zero
+
 		// Handle jumps first because addressing modes behave slightly differently
+		// TODO: should be able to reconcile this with the addition of addr_behaviour
 		switch (instruction.op_type) {
 		case op::JMP:
 			switch (instruction.addr_mode) {
@@ -767,25 +779,30 @@ struct cpu6502 {
 			queue_uop(MOV, tmp, mem);
 			fetch_pc_byte();
 			queue_uop(MOV, tmp_high, mem);
-			queue_uop(READ_MEM, mem, tmp16);
+			queue_uop(MOV16, tmp_b16, tmp16);
+			if (instruction.addr_behaviour == op::read_byte)
+				queue_uop(READ_MEM, mem, tmp_b16);
 			break;
 		case op::absX:
 			fetch_pc_byte();
 			queue_uop(MOV, tmp, mem);
 			fetch_pc_byte();
 			queue_uop(MOV, tmp_high, mem);
-			queue_uop(ADC16_NOFLAG, tmp16, x);
-			queue_uop(READ_MEM, mem, tmp16);
+			queue_uop(ADC16_NOFLAG, tmp_b16, x);
+			if (instruction.addr_behaviour == op::read_byte)
+				queue_uop(READ_MEM, mem, tmp_b16);
 			break;
 		case op::absY:
 			fetch_pc_byte();
 			queue_uop(MOV, tmp, mem);
 			fetch_pc_byte();
 			queue_uop(MOV, tmp_high, mem);
-			queue_uop(ADC16_NOFLAG, tmp16, x);
-			queue_uop(READ_MEM, mem, tmp16);
+			queue_uop(ADC16_NOFLAG, tmp_b16, x);
+			if (instruction.addr_behaviour == op::read_byte)
+			queue_uop(READ_MEM, mem, tmp_b16);
 			break;
 		case op::imm:
+			ASSERT(instruction.addr_behaviour == op::read_byte, "Doesn't make sense to write to an imm");
 			fetch_pc_byte();
 			break;
 		case op::impl:
@@ -797,8 +814,9 @@ struct cpu6502 {
 			fetch_pc_byte();
 			queue_uop(MOV, tmp_high, mem);
 			queue_uop(READ_MEM, mem, tmp16);
-			queue_uop(MOV, tmp16, mem);
-			queue_uop(READ_MEM, mem, tmp16); // indirection
+			queue_uop(MOV, tmp_b16, mem);
+			if (instruction.addr_behaviour == op::read_byte)
+				queue_uop(READ_MEM, mem, tmp_b16); // indirection
 			break;
 		case op::Xind:
 			fetch_pc_byte();
@@ -809,7 +827,8 @@ struct cpu6502 {
 			queue_uop(INC_NOFLAG, tmp);
 			queue_uop(READ_ZPG, mem, tmp);
 			queue_uop(MOV, tmp_bh, mem);
-			queue_uop(READ_MEM, mem, tmp_b16);
+			if (instruction.addr_behaviour == op::read_byte)
+				queue_uop(READ_MEM, mem, tmp_b16);
 			break;
 		case op::indY:
 			fetch_pc_byte();
@@ -820,27 +839,34 @@ struct cpu6502 {
 			queue_uop(READ_ZPG, mem, tmp);
 			queue_uop(MOV, tmp_bh, mem);
 			queue_uop(ADC16_NOFLAG, tmp_b16, y);
-			queue_uop(READ_MEM, mem, tmp_b16);
+			if (instruction.addr_behaviour == op::read_byte)
+				queue_uop(READ_MEM, mem, tmp_b16);
 			break;
 		case op::rel:
 			fetch_pc_byte();
 			break;
 		case op::zpg:
 			fetch_pc_byte();
-			queue_uop(MOV, tmp, mem);
-			queue_uop(READ_ZPG, mem, tmp);
+			queue_uop(SET_ZERO, tmp_bh);
+			queue_uop(MOV, tmp_bl, mem);
+			if (instruction.addr_behaviour == op::read_byte)
+				queue_uop(READ_ZPG, mem, tmp_bl);
 			break;
 		case op::zpgX:
 			fetch_pc_byte();
-			queue_uop(MOV, tmp, mem);
-			queue_uop(ADD_NOFLAG, tmp, x);
-			queue_uop(READ_ZPG, mem, tmp);
+			queue_uop(SET_ZERO, tmp_bh);
+			queue_uop(MOV, tmp_bl, mem);
+			queue_uop(ADD_NOFLAG, tmp_bl, X);
+			if (instruction.addr_behaviour == op::read_byte)
+				queue_uop(READ_ZPG, mem, tmp_bl);
 			break;
 		case op::zpgY:
 			fetch_pc_byte();
-			queue_uop(MOV, tmp, mem);
-			queue_uop(ADD_NOFLAG, tmp, y);
-			queue_uop(READ_ZPG, mem, tmp);
+			queue_uop(MOV, tmp_bl, mem);
+			queue_uop(SET_ZERO, tmp_bh);
+			queue_uop(ADD_NOFLAG, tmp_bl, Y);
+			if (instruction.addr_behaviour == op::read_byte)
+				queue_uop(READ_ZPG, mem, tmp_bl);
 			break;
 		default:
 			ASSERT(false, "Unimplemented addressing mode %d (opcode %x)", instruction.addr_mode, opcode);
@@ -861,19 +887,19 @@ struct cpu6502 {
 			queue_uop(ADC, A, mem);
 			break;
 		case op::STA:
-			queue_uop(MOV, mem, A);
+			queue_uop(WRITE_MEM, tmp_b16, A);
 			break;
 		case op::LDA:
 			queue_uop(MOV, A, mem);
 			break;
 		case op::STX:
-			queue_uop(MOV, mem, X);
+			queue_uop(WRITE_MEM, tmp_b16, X);
 			break;
 		case op::LDX:
 			queue_uop(MOV, X, mem);
 			break;
 		case op::STY:
-			queue_uop(MOV, mem, Y);
+			queue_uop(WRITE_MEM, tmp_b16, Y);
 			break;
 		case op::LDY:
 			queue_uop(MOV, Y, mem);
@@ -881,6 +907,7 @@ struct cpu6502 {
 		case op::CMP:
 			queue_uop(CMP, A, mem);
 			break;
+		// TODO: which of these do I need to add memor writes to?
 		case op::SBC:
 			queue_uop(SBC, A, mem);
 			break;
@@ -1124,6 +1151,12 @@ struct cpu6502 {
 				pinout.rw = RW_READ;
 				end_cycle = true;
 				break;
+			case WRITE_MEM:
+				pinout.a = get_val_16(u.target);
+				pinout.d = get_val(u.src);
+				pinout.rw = RW_WRITE;
+				end_cycle = true;
+				break;
 			case READ_ZPG:
 				ASSERT(u.target == mem, "READ_ZPG must read into mem");
 				pinout.a = (u16)get_val(u.src);
@@ -1181,7 +1214,10 @@ struct cpu6502 {
 					// So flags are set
 					alu_op(alu::load, get_target(u.target), get_val(u.src));
 				else
-					*get_target(u.target) = get_val((uop_target)u.data);
+					*get_target(u.target) = get_val(u.src);
+				break;
+			case SET_ZERO:
+				*get_target(u.target) = 0;
 				break;
 			case MOV16:
 				*get_target_16(u.target) = get_val_16((uop_target)u.data);
