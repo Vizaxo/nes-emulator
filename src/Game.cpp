@@ -81,9 +81,22 @@ struct App : Application {
 		if (ImGui::Button("Single step"))
 			single_step(); //TODO: probably shouldn't be in the render function.
 
+
 		static bool focus_on_pc;
+		static bool focus_on_address;
+		static u16 focus_address;
 		ImGui::SameLine();
 		bool focus_on_pc_enabled_this_frame = ImGui::Checkbox("Focus PC", &focus_on_pc);
+		if (focus_on_pc) {
+			focus_on_address = true;
+			focus_address = nes.cpu.pc;
+		}
+
+		bool focus_on_address_enabled_this_frame = ImGui::InputScalar("Focus addr", ImGuiDataType_U16, &focus_address, 0, 0, "%04x");
+		if (focus_on_address_enabled_this_frame) {
+			focus_on_address = true;
+			focus_on_pc = false;
+		}
 
 		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
 			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable
@@ -98,13 +111,13 @@ struct App : Application {
 		ImGuiListClipper clipper;
 
 		u32 addr = 0;
-		u32 pc_row = 0;
+		u32 focus_addr_row = 0;
 		int num_rows = 0;
 		while(addr <= Memory::MEM_MAX) {
 			disas_entry& ret = ins_metadata[addr];
 			addr += ret.ins_len;
-			if (addr == nes.cpu.pc)
-				pc_row = num_rows;
+			if (addr == focus_address)
+				focus_addr_row = num_rows;
 			++num_rows;
 		}
 
@@ -150,9 +163,9 @@ struct App : Application {
 		if (!focus_on_pc_enabled_this_frame && scroll_y != last_requested_scroll_y)
 			focus_on_pc = false;
 
-		if (focus_on_pc) {
-			last_requested_scroll_y = clipper.ItemsHeight * pc_row;
-			ImGui::SetScrollY(clipper.ItemsHeight * pc_row);
+		if (focus_on_address) {
+			last_requested_scroll_y = clipper.ItemsHeight * focus_addr_row;
+			ImGui::SetScrollY(clipper.ItemsHeight * focus_addr_row);
 		}
 
 
