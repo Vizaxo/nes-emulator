@@ -1065,7 +1065,7 @@ struct cpu6502 {
 		};
 	};
 
-	void alu_op(alu::alu_op op, u8* dest, u8 src, bool can_set_v = true, bool write_res = true) {
+	void alu_op(alu::alu_op op, u8* dest, u8 src, bool can_set_v = true, bool write_res = true, bool setflags = true) {
 		u16 ret;
 		bool setNZ = true;
 		bool setC = false;
@@ -1125,19 +1125,19 @@ struct cpu6502 {
 			break;
 		}
 
-		if (can_set_v && setV)
+		if (setflags && can_set_v && setV)
 			// overflow only occurs when both inputs are the same sign, and the output is a different sign
 			set_flag(flag::V, sign8(*dest) == sign8(src) ? sign8(ret) != sign8(*dest) : 0);
 
 		if (write_res)
 			*dest = (u8)(ret & 0xff);
 
-		if (setNZ) {
+		if (setflags && setNZ) {
 			set_flag(flag::N, sign8(ret));
 			set_flag(flag::Z, (0xff & ret) == 0);
 		}
 
-		if (setC)
+		if (setflags && setC)
 			set_flag(flag::C, ret > 0xff);
 	}
 
@@ -1271,7 +1271,7 @@ struct cpu6502 {
 				alu_op(alu::ror, get_target(u.target), get_val(u.src));
 				break;
 			case DEC:
-				alu_op(alu::dec, get_target(u.target), get_val(u.src));
+				alu_op(alu::dec, get_target(u.target), get_val(u.src), false, true, false);
 				break;
 			case INC:
 				alu_op(alu::inc, get_target(u.target), get_val(u.src));
