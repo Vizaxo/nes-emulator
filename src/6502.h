@@ -1234,7 +1234,7 @@ struct cpu6502 {
 			case ADC16_NOFLAG:
 			{
 				u16 tgt = get_val_16(u.target);
-				*get_target_16(u.target) = get_val_16(u.target) + get_val(u.src);
+				*get_target_16(u.target) = get_val_16(u.target) + get_val(u.src); // NOTE: this ADC is not referring to accumulator carry
 				if (tgt & 0xff00 != get_val_16(u.target) & 0xff00)
 					// High byte affected, takes an extra cycle
 					end_cycle = true;
