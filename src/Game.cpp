@@ -124,7 +124,10 @@ struct App : Application {
 				ASSERT(last.type == ins_history_entry::repeat, "Last has to be a repeat");
 				ins_history_entry& repeated_entry = ins_history[ins_history.num() - 2];
 				if (repeated_entry == entry) {
-					last.repeat_count++;
+					if (jump_list[jump_list.num()-1].type == ins_history_entry::repeat)
+						jump_list[jump_list.num()-1].repeat_count++;
+					else
+						jump_list.add(last);
 				}
 			}
 		}
