@@ -750,8 +750,10 @@ struct cpu6502 {
 		// If instruction needs a byte read (instruction.addr_behaviour == op::read_byte) it will be in mem
 		// zpg reads are in tmp_bl, with tmp_bh being zero
 
+		uop_target addr_mode_target = mem;
 		switch (instruction.addr_mode) {
 		case op::A:
+			addr_mode_target = A;
 			queue_uop(SINGLE_BYTE_INS_DELAY, (uop_target)0x0, 0x0);
 			break;
 		case op::abs:
@@ -901,16 +903,24 @@ struct cpu6502 {
 			queue_uop(SBC, A, mem);
 			break;
 		case op::ASL:
-			queue_uop(ASL, A, mem);
+			queue_uop(ASL, addr_mode_target, addr_mode_target);
+			if (addr_mode_target == mem)
+				queue_uop(WRITE_MEM, tmp_b16, mem);
 			break;
 		case op::ROL:
-			queue_uop(ROL, A, mem);
+			queue_uop(ROL, addr_mode_target, addr_mode_target);
+			if (addr_mode_target == mem)
+				queue_uop(WRITE_MEM, tmp_b16, mem);
 			break;
 		case op::LSR:
-			queue_uop(LSR, A, mem);
+			queue_uop(LSR, addr_mode_target, addr_mode_target);
+			if (addr_mode_target == mem)
+				queue_uop(WRITE_MEM, tmp_b16, mem);
 			break;
 		case op::ROR:
-			queue_uop(ROR, A, mem);
+			queue_uop(ROR, addr_mode_target, addr_mode_target);
+			if (addr_mode_target == mem)
+				queue_uop(WRITE_MEM, tmp_b16, mem);
 			break;
 		case op::DEC:
 			queue_uop(DEC, tmp, mem);
@@ -1132,20 +1142,20 @@ struct cpu6502 {
 			ret = src;
 			break;
 		case alu::asl:
-			ret = *dest << 1;
+			ret = src << 1;
 			setC = true;
 			break;
 		case alu::rol:
-			ret = *dest << 1;
+			ret = src << 1;
 			ret |= 0x1 & get_flag(flag::C);
 			setC = true;
 			break;
 		case alu::lsr:
-			ret = *dest >> 1;
+			ret = src >> 1;
 			set_flag(flag::C, 0x1 & *dest);
 			break;
 		case alu::ror:
-			ret = *dest >> 1;
+			ret = src >> 1;
 			ret |= (get_flag(flag::C) & 0x1) << 7;
 			set_flag(flag::C, 0x1 & *dest);
 			break;
