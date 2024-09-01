@@ -59,16 +59,13 @@ struct App : Application {
 
 	void tick(float deltaTime) override {
 		update_ins_lengths();
-		if (single_step_debugging && !first_tick)
+		if (single_step_debugging)
 			return;
 
 		static constexpr int TICKS_PER_FRAME = 1000;
 		for (int i = 0; i < TICKS_PER_FRAME; ++i) {
 			single_step();
 		}
-
-		// todo: figure out when we need to rebuild this
-		first_tick = false;
 	}
 
 	void draw_debugger() {
