@@ -21,6 +21,8 @@ struct App : Application {
 	u16 mem_focus_addr  = 0x0;
 	u16 data_break_addr = 0x0;
 	u8 data_break_val;
+	u8 break_opcode;
+	bool break_on_opcode = false;
 	enum data_break_mode_t {
 		none = 0x0,
 		read = 0x1,
@@ -97,6 +99,9 @@ struct App : Application {
 
 		executing_addr = nes.cpu.pc;
 		if (ins_metadata[nes.cpu.pc].breakpoint) {
+			single_step_debugging = true;
+		}
+		if (break_on_opcode && nes.mem[executing_addr] == break_opcode) {
 			single_step_debugging = true;
 		}
 	}
@@ -331,11 +336,16 @@ struct App : Application {
 		ImGui::SameLine();
 		ImGui::Checkbox("W", &data_break_write);
 		data_break_mode = (data_break_mode_t)((data_break_mode & ~write) | (data_break_write ? write : none));
+
 		ImGui::InputScalar("##breakval", ImGuiDataType_U8, &data_break_val, 0, 0, "%02x");
 		ImGui::SameLine();
 		bool data_break_val_only = data_break_mode & specific_val;
 		ImGui::Checkbox("Break on val only", &data_break_val_only);
 		data_break_mode = (data_break_mode_t)((data_break_mode & ~specific_val) | (data_break_val_only ? specific_val : none));
+
+		ImGui::InputScalar("##breakopcode", ImGuiDataType_U8, &break_opcode, 0, 0, "%02x");
+		ImGui::SameLine();
+		ImGui::Checkbox("Break on opcode", &break_on_opcode);
 
 		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
 			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable;
