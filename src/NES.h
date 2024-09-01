@@ -50,6 +50,8 @@ struct NES {
 			cpu.pinout.d = mem.pinout.d;
 		else
 			mem.pinout.d = cpu.pinout.d;
+
+		mem.tick();
 	}
 
 	inline void load_rom(str path) {
