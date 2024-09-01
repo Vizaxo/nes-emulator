@@ -318,10 +318,25 @@ struct App : Application {
 		ImGui::End();
 	}
 
+	void draw_pinout_view() {
+		ImGui::Begin("Pinout");
+		ImGui::Text("a: %04x", nes.cpu.pinout.a);
+		if (nes.cpu.pinout.a != nes.mem.pinout.a)
+			ImGui::TextColored(ImVec4(1.f, 0.f, 0.f, 1.f), "mem a: %04x", nes.mem.pinout.a);
+		ImGui::Text("d: %02x", nes.cpu.pinout.d);
+		if (nes.cpu.pinout.d != nes.mem.pinout.d)
+			ImGui::TextColored(ImVec4(1.f, 0.f, 0.f, 1.f), "mem d: %02x", nes.mem.pinout.d);
+		ImGui::Text("r/w: %s", nes.cpu.pinout.rw ? "read" : "write");
+		if (nes.cpu.pinout.rw != nes.mem.pinout.rw)
+			ImGui::TextColored(ImVec4(1.f, 0.f, 0.f, 1.f), "mem rw: %s", nes.mem.pinout.rw ? "read" : "write");
+		ImGui::End();
+	}
+
 	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override {
 		draw_debugger();
 		draw_registers();
 		draw_memory_view();
+		draw_pinout_view();
 	}
 
 	void cleanup() override {}
