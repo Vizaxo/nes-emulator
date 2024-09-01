@@ -59,6 +59,7 @@ struct App : Application {
 		inline bool operator!=(ins_history_entry& other) { return !(*this == other); }
 	};
 	Array<ins_history_entry> ins_history;
+	Array<ins_history_entry> jump_list;
 
 	void reset_nes() {
 		nes.reset();
@@ -66,6 +67,7 @@ struct App : Application {
 		single_step_debugging = true;
 		single_step();
 		ins_history.reset();
+		jump_list.reset();
 	}
 
 	void init(RefPtr<Renderer> renderer, PAL::WindowHandle h) override {
@@ -90,13 +92,14 @@ struct App : Application {
 		}
 	}
 
-	void single_step() {
+	void add_ins_history_entry() {
 		ins_history_entry entry = {executing_addr, cpu6502::get_ins_length(executing_addr, &nes.mem)};
 		entry.ins_bytes[0] = nes.mem[executing_addr];
 		entry.ins_bytes[1] = nes.mem[executing_addr+1];
 		entry.ins_bytes[2] = nes.mem[executing_addr+2];
 
 		bool add_new_entry = true;
+		bool add_jump_entry = false;
 		if (ins_history.num() >= 1) {
 			ins_history_entry& last = ins_history[ins_history.num() - 1];
 			if (last.type == ins_history_entry::repeat) {
@@ -111,9 +114,27 @@ struct App : Application {
 				entry.type = ins_history_entry::repeat;
 				entry.repeat_count = 2; // Start at x2,x3...
 			}
+
+			// Add jump list entry
+			int show_jump_list_entries = 0;
+			if (last.type == ins_history_entry::entry) {
+				if (last.addr + last.ins_len != entry.addr)
+					jump_list.add(last);
+			} else {
+				ASSERT(last.type == ins_history_entry::repeat, "Last has to be a repeat");
+				ins_history_entry& repeated_entry = ins_history[ins_history.num() - 2];
+				if (repeated_entry == entry) {
+					last.repeat_count++;
+				}
+			}
 		}
+
 		if (add_new_entry)
 			ins_history.add(entry);
+	}
+
+	void single_step() {
+		add_ins_history_entry();
 
 		// Execute until the next instruction is fetched
 		do {
@@ -441,6 +462,10 @@ struct App : Application {
 	void draw_ins_history() {
 		ImGui::Begin("Instruction history");
 
+		static bool show_jump_list = false;
+		ImGui::Checkbox("Jump list", &show_jump_list);
+
+		ImGui::SameLine();
 		static bool scroll_to_end = true;
 		bool scroll_to_end_updated_this_frame = ImGui::Checkbox("Scroll to end", &scroll_to_end);
 		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
@@ -454,11 +479,14 @@ struct App : Application {
 		ImGui::TableHeadersRow();
 
 		ImGuiListClipper clipper;
-		clipper.Begin(ins_history.num());
+
+		Array<ins_history_entry>& list_to_show = show_jump_list ? jump_list : ins_history;
+		clipper.Begin(list_to_show.num());
 
 		while (clipper.Step()) {
-			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
-				ins_history_entry& entry = ins_history[i];
+			for (int i = clipper.DisplayStart, table_index=i; i < clipper.DisplayEnd; ++i, ++table_index) {
+
+				ins_history_entry& entry = list_to_show[table_index];
 				ImGui::TableNextRow();
 				switch (entry.type) {
 				case ins_history_entry::entry:
