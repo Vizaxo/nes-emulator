@@ -958,6 +958,12 @@ struct cpu6502 {
 			queue_uop(INC, tmp, mem);
 			queue_uop(MOV, mem, tmp);
 			break;
+		case op::INX:
+			queue_uop(INC, X, X);
+			break;
+		case op::INY:
+			queue_uop(INC, Y, Y);
+			break;
 		case op::TAY:
 			queue_uop(MOV, Y, A);
 			break;
