@@ -1171,7 +1171,6 @@ struct cpu6502 {
 				break;
 			case FETCH:
 				ASSERT(u.target == mem, "FETCH must fetch from mem")
-				print_instruction(pc, debug_mem);
 
 				fetching = true;
 				fetch_addr = pc;

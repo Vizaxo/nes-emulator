@@ -62,7 +62,7 @@ struct App : Application {
 		if (single_step_debugging && !first_tick)
 			return;
 
-		static constexpr int TICKS_PER_FRAME = 1;
+		static constexpr int TICKS_PER_FRAME = 1000;
 		for (int i = 0; i < TICKS_PER_FRAME; ++i) {
 			single_step();
 		}
