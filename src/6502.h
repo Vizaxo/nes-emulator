@@ -139,6 +139,7 @@ struct cpu6502 {
 		X,
 		Y,
 		S,
+		P,
 		stack, // 16-bit address at $01LL, with $LL formed by s
 		pc16,
 		pcl,
@@ -467,6 +468,7 @@ struct cpu6502 {
 		case A: return &a;
 		case X: return &x;
 		case Y: return &y;
+		case P: return &p;
 		case S: return &s;
 		case pch: return ((u8*)&pc)+1;
 		case pcl: return (u8*)&pc; // Assuming little endian
@@ -480,6 +482,9 @@ struct cpu6502 {
 	}
 
 	u8 get_val(uop_target target) {
+		switch (target) {
+		case P: return p | (1<<5); // Ignored bit is always pushed as 1
+		}
 		return *get_target(target);
 	}
 
@@ -1020,6 +1025,21 @@ struct cpu6502 {
 		case op::PHA:
 			queue_uop(WRITE_MEM, stack, A);
 			queue_uop(DEC, S, S);
+			break;
+		case op::PLA:
+			queue_uop(INC, S, S);
+			queue_uop(READ_MEM, mem, stack);
+			queue_uop(MOV, A, mem);
+			break;
+		case op::PHP:
+			queue_uop(SET_FLAG, (uop_target)0xff, flag::B);
+			queue_uop(WRITE_MEM, stack, P);
+			queue_uop(DEC, S, S);
+			break;
+		case op::PLP:
+			queue_uop(INC, S, S);
+			queue_uop(READ_MEM, mem, stack);
+			queue_uop(MOV, P, mem);
 			break;
 		default:
 			ASSERT(false, "Unimplemented instruction %d (opcode 0x%x)", instruction.op_type, opcode);
