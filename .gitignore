@@ -376,3 +376,5 @@ imgui.ini
 *.rdc
 
 roms*
+
+enc_temp_folder/
