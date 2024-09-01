@@ -470,12 +470,12 @@ struct cpu6502 {
 		case Y: return &y;
 		case P: return &p;
 		case S: return &s;
-		case pch: return ((u8*)&pc)+1;
 		case pcl: return (u8*)&pc; // Assuming little endian
-		case tmp_high: return ((u8*)&tmp_internal)+1;
+		case pch: return ((u8*)&pc)+1;
 		case tmp: return (u8*)&tmp_internal;
-		case tmp_bl: return ((u8*)&tmp_b)+1;
-		case tmp_bh: return (u8*)&tmp_b;
+		case tmp_high: return ((u8*)&tmp_internal)+1;
+		case tmp_bl: return (u8*)&tmp_b;
+		case tmp_bh: return ((u8*)&tmp_b)+1;
 		case mem: return &pinout.d;
 		default: ASSERT(false, "Target not implemented"); return nullptr;
 		}
