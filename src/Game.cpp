@@ -454,9 +454,11 @@ struct App : Application {
 			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable;
 
 		static u16 filter_list_addr;
-		ImGui::InputScalar("##filteraddr", ImGuiDataType_U16, &filter_list_addr, 0, 0, "%04x");
-		ImGui::SameLine();
 		static bool should_filter_list;
+		if (ImGui::InputScalar("##filteraddr", ImGuiDataType_U16, &filter_list_addr, 0, 0, "%04x"))
+			should_filter_list = filter_list_addr != 0;
+
+		ImGui::SameLine();
 		bool should_filter_list_updated_this_frame = ImGui::Checkbox("Filter list", &should_filter_list);
 
 		ImGui::BeginTable("##mem", 4, table_flags);
