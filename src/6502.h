@@ -379,7 +379,7 @@ struct cpu6502 {
 		opcode_table[0x00] = {op::BRK, op::impl};
 		opcode_table[0x20] = {op::JSR, op::abs, op::no_read};
 		opcode_table[0x40] = {op::RTI, op::impl};
-		opcode_table[0x40] = {op::RTS, op::impl};
+		opcode_table[0x60] = {op::RTS, op::impl};
 
 
 		// Rest of single-byte instructions
