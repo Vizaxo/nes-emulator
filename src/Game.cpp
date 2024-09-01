@@ -7,7 +7,7 @@
 Log::Channel appChan = {"App"};
 
 struct App : Application {
-	App() : Application(L"App") {}
+	App() : Application(L"6502 emulator") {}
 	~App() override {}
 	Scene scene;
 
