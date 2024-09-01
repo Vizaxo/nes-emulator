@@ -8,6 +8,10 @@
 #define RW_READ 1
 #define RW_WRITE 0
 
+#define NMI_VECTOR 0xfffa
+#define RES_VECTOR 0xfffc
+#define IRQ_VECTOR 0xfffe
+
 static inline Log::Channel cpuChan = {"CPU"};
 
 // Get the 8-bit two's complement sign bit. Takes 16-bit to account for overflows.
@@ -1024,6 +1028,22 @@ struct cpu6502 {
 			queue_uop(READ_MEM, mem, stack);
 			queue_uop(MOV, pch, mem);
 			queue_uop(INC16, pc16, pc16);
+			break;
+		case op::BRK:
+			queue_uop(INC16, pc16, pc16);
+			queue_uop(WRITE_MEM, stack, pch);
+			queue_uop(DEC_NOFLAG, S, S);
+			queue_uop(WRITE_MEM, stack, pcl);
+			queue_uop(DEC_NOFLAG, S, S);
+			queue_uop(SET_FLAG, (uop_target)0xff, flag::B);
+			queue_uop(WRITE_MEM, stack, P);
+			queue_uop(DEC_NOFLAG, S, S);
+			queue_uop(LDIMM16, tmp16, IRQ_VECTOR);
+			queue_uop(READ_MEM, mem, tmp16);
+			queue_uop(MOV, pcl, mem);
+			queue_uop(INC16, tmp16, tmp16);
+			queue_uop(READ_MEM, mem, tmp16);
+			queue_uop(MOV, pch, mem);
 			break;
 		default:
 			ASSERT(false, "Unimplemented instruction %d (opcode 0x%x)", instruction.op_type, opcode);
