@@ -292,7 +292,7 @@ struct App : Application {
 				for (int j = 0; j < num_columns; j++) {
 					ImGui::PushID(addr+j);
 					ImGui::TableSetColumnIndex(j + 1);
-					ImGui::InputScalar("", ImGuiDataType_U8, &nes.mem.memory[addr + j], 0, 0, "%02x");
+					ImGui::InputScalar("##byte", ImGuiDataType_U8, &nes.mem.memory[addr + j], 0, 0, "%02x");
 					ImGui::PopID();
 				}
 			}
