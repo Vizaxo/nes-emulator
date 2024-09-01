@@ -22,6 +22,7 @@ struct App : Application {
 	u16 data_break_addr = 0x0;
 	u8 data_break_val;
 	u8 break_opcode;
+	int ticks_per_frame = 1000;
 	bool break_on_opcode = false;
 	enum data_break_mode_t {
 		none = 0x0,
@@ -143,8 +144,7 @@ struct App : Application {
 		update_ins_lengths();
 		executing_addr = nes.cpu.pc;
 
-		static constexpr int TICKS_PER_FRAME = 1000;
-		for (int i = 0; i < TICKS_PER_FRAME; ++i) {
+		for (int i = 0; i < ticks_per_frame; ++i) {
 			if (single_step_debugging)
 				return;
 			single_step();
@@ -153,6 +153,8 @@ struct App : Application {
 
 	void draw_debugger() {
 		ImGui::Begin("Debugger");
+
+		ImGui::InputInt("Cycles per frame", &ticks_per_frame);
 
 		if (ImGui::Button(single_step_debugging ? "Continue" : "Pause"))
 			single_step_debugging = !single_step_debugging;
