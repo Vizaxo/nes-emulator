@@ -41,6 +41,21 @@ struct App : Application {
 		u16 addr;
 		u8 ins_len;
 		u8 ins_bytes[3];
+		enum type_t {
+			entry,
+			repeat,
+		} type = entry;
+		u32 repeat_count = 0;
+
+		inline bool operator==(ins_history_entry& other) {
+			if (type != other.type || addr != other.addr || ins_len != other.ins_len)
+				return false;
+			for (int i = 0; i < ins_len; ++i)
+				if (ins_bytes[i] != other.ins_bytes[i])
+					return false;
+			return true;
+		}
+		inline bool operator!=(ins_history_entry& other) { return !(*this == other); }
 	};
 	Array<ins_history_entry> ins_history;
 
@@ -75,11 +90,29 @@ struct App : Application {
 	}
 
 	void single_step() {
-		ins_history_entry hist = {executing_addr, cpu6502::get_ins_length(executing_addr, &nes.mem)};
-		hist.ins_bytes[0] = nes.mem[executing_addr];
-		hist.ins_bytes[1] = nes.mem[executing_addr+1];
-		hist.ins_bytes[2] = nes.mem[executing_addr+2];
-		ins_history.add(hist);
+		ins_history_entry entry = {executing_addr, cpu6502::get_ins_length(executing_addr, &nes.mem)};
+		entry.ins_bytes[0] = nes.mem[executing_addr];
+		entry.ins_bytes[1] = nes.mem[executing_addr+1];
+		entry.ins_bytes[2] = nes.mem[executing_addr+2];
+
+		bool add_new_entry = true;
+		if (ins_history.num() >= 1) {
+			ins_history_entry& last = ins_history[ins_history.num() - 1];
+			if (last.type == ins_history_entry::repeat) {
+				ins_history_entry& repeated_entry = ins_history[ins_history.num() - 2];
+				if (repeated_entry == entry) {
+					last.repeat_count++;
+					add_new_entry = false;
+				}
+			}
+
+			if (last == entry) {
+				entry.type = ins_history_entry::repeat;
+				entry.repeat_count = 2; // Start at x2,x3...
+			}
+		}
+		if (add_new_entry)
+			ins_history.add(entry);
 
 		// Execute until the next instruction is fetched
 		do {
@@ -425,15 +458,26 @@ struct App : Application {
 			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
 				ins_history_entry& entry = ins_history[i];
 				ImGui::TableNextRow();
-				ImGui::TableSetColumnIndex(0);
-				ImGui::Text("%04x", entry.addr);
-				ImGui::TableSetColumnIndex(1);
-				for (int j = 0; j < entry.ins_len; ++j) {
-					ImGui::SameLine();
-					ImGui::Text("%02x", entry.ins_bytes[j]);
+				switch (entry.type) {
+				case ins_history_entry::entry:
+					ImGui::TableSetColumnIndex(0);
+					ImGui::Text("%04x", entry.addr);
+					ImGui::TableSetColumnIndex(1);
+					for (int j = 0; j < entry.ins_len; ++j) {
+						ImGui::SameLine();
+						ImGui::Text("%02x", entry.ins_bytes[j]);
+					}
+					ImGui::TableSetColumnIndex(2);
+					ImGui::Text("%s", cpu6502::disassemble_instruction(entry.addr, &nes.mem).s);
+					break;
+				case ins_history_entry::repeat:
+					ImGui::TableSetColumnIndex(2);
+					ImGui::Text("x%d", entry.repeat_count);
+					break;
+				default:
+					ASSERT(false, "Unimplemented ins history entry type");
+					break;
 				}
-				ImGui::TableSetColumnIndex(2);
-				ImGui::Text("%s", cpu6502::disassemble_instruction(entry.addr, &nes.mem).s);
 			}
 		}
 
