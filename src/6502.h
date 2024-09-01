@@ -127,6 +127,7 @@ struct cpu6502 {
 		DEC_NOFLAG,
 		INC,
 		INC16,
+		DEC16,
 		INC_NOFLAG,
 		NOP,
 		CLEAR_FLAG,
@@ -1004,6 +1005,17 @@ struct cpu6502 {
 		case op::JMP:
 			queue_uop(MOV16, pc16, tmp_b16);
 			break;
+		case op::JSR:
+			// JSR only increments PC twice, not three times despite reading 3 bytes
+			// TODO: make this cycle-accurate by matching uOPs
+			queue_uop(DEC16, pc16, pc16);
+
+			queue_uop(WRITE_MEM, stack, pch);
+			queue_uop(DEC_NOFLAG, S, S);
+			queue_uop(WRITE_MEM, stack, pcl);
+			queue_uop(DEC_NOFLAG, S, S);
+			queue_uop(MOV16, pc16, tmp_b16);
+			break;
 		default:
 			ASSERT(false, "Unimplemented instruction %d (opcode 0x%x)", instruction.op_type, opcode);
 			break;
@@ -1244,6 +1256,9 @@ struct cpu6502 {
 				break;
 			case INC16:
 				++(*get_target_16(u.target));
+				break;
+			case DEC16:
+				--(*get_target_16(u.target));
 				break;
 			case INC_NOFLAG:
 				++(*get_target(u.target));
