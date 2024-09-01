@@ -26,6 +26,12 @@ struct App : Application {
 	};
 	disas_entry ins_metadata[Memory::MEM_MAX+1];
 
+	void reset_nes() {
+		nes.reset();
+		executing_addr = nes.cpu.pc;
+		single_step_debugging = true;
+	}
+
 	void init(RefPtr<Renderer> renderer, PAL::WindowHandle h) override {
 		LOG(Log::INFO, appChan, "Initialized");
 		scene.camera.cam2d = { {0.f,0.f}, 1.f, h };
@@ -35,8 +41,7 @@ struct App : Application {
 			ins_metadata[i].breakpoint = false;
 		}
 
-		nes.init();
-		executing_addr = nes.cpu.pc;
+		reset_nes();
 	}
 
 	void update_ins_lengths() {
@@ -80,7 +85,7 @@ struct App : Application {
 		if (ImGui::Button("Single step"))
 			single_step(); //TODO: probably shouldn't be in the render function.
 
-
+		ImGui::SameLine();
 		static bool focus_on_pc;
 		bool focus_on_address = false;
 		static u16 focus_address;
@@ -90,6 +95,13 @@ struct App : Application {
 			focus_on_address = true;
 			focus_address = nes.cpu.pc;
 		}
+
+		float resetWidth = ImGui::CalcTextSize("Reset").x + ImGui::GetStyle().FramePadding.x*2.f;
+		ImVec2 resetSize(resetWidth, 0.f);
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - resetSize.x);
+		if (ImGui::Button("Reset", resetSize))
+			reset_nes();
 
 		bool focus_on_address_enabled_this_frame = ImGui::InputScalar("Focus addr", ImGuiDataType_U16, &focus_address, 0, 0, "%04x");
 		if (focus_on_address_enabled_this_frame) {

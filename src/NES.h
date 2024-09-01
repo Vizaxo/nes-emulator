@@ -12,7 +12,7 @@ struct NES {
 	Memory mem;
 	bool test_rom;
 
-	inline void init() {
+	inline void reset() {
 		cpu.init();
 		cpu.debug_mem = &mem;
 
