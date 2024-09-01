@@ -101,7 +101,7 @@ struct cpu6502 {
 		u8 rw : 1; // Read/write. High to read
 	} pinout;
 
-	enum UOP_ID {
+	enum UOP_ID : u8 {
 		READ_MEM,
 		WRITE_MEM,
 		READ_ZPG,
@@ -139,7 +139,7 @@ struct cpu6502 {
 		BRANCH_FLAG_SET,
 		BRANCH_FLAG_UNSET,
 	};
-	enum uop_target {
+	enum uop_target : u8 {
 		A,
 		X,
 		Y,
