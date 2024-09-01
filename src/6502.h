@@ -106,7 +106,6 @@ struct cpu6502 {
 		FETCH,
 		DECODE,
 		SINGLE_BYTE_INS_DELAY,
-		CATCH_INFINITE_LOOP,
 
 		// EXECUTE uOPs
 		SET_ZERO,
@@ -760,7 +759,6 @@ struct cpu6502 {
 				queue_uop(MOV, tmp, mem);
 				fetch_pc_byte();
 				queue_uop(MOV, tmp_high, mem);
-				queue_uop(CATCH_INFINITE_LOOP, tmp16);
 				queue_uop(MOV16, pc16, tmp16);
 				break;
 			case op::ind:
@@ -1319,11 +1317,6 @@ struct cpu6502 {
 					// TODO: extra cycle for page transition
 				}
 				break;
-			case CATCH_INFINITE_LOOP:
-			{
-				u16 jmp_target = get_val_16(u.target);
-				break;
-			}
 			default:
 				ASSERT(false, "Unimplemented uop %d", u.uop_id);
 				break;
