@@ -36,6 +36,7 @@ struct App : Application {
 		}
 
 		nes.init();
+		executing_addr = nes.cpu.pc;
 	}
 
 	void update_ins_lengths() {
@@ -51,8 +52,8 @@ struct App : Application {
 			nes.tick();
 		} while (!nes.cpu.fetching);
 
-		executing_addr = nes.cpu.fetch_addr;
-		if (ins_metadata[nes.cpu.fetch_addr].breakpoint) {
+		executing_addr = nes.cpu.pc;
+		if (ins_metadata[nes.cpu.pc].breakpoint) {
 			single_step_debugging = true;
 		}
 	}
