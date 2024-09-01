@@ -218,6 +218,42 @@ struct App : Application {
 		ImGui::PopID();
 
 		ImGui::EndTable();
+
+		bool flag;
+		flag = nes.cpu.get_flag(cpu6502::flag::N);
+		ImGui::Checkbox("N", &flag);
+		nes.cpu.set_flag(cpu6502::flag::N, flag);
+
+		flag = nes.cpu.get_flag(cpu6502::flag::V);
+		ImGui::SameLine();
+		ImGui::Checkbox("V", &flag);
+		nes.cpu.set_flag(cpu6502::flag::V, flag);
+
+		flag = nes.cpu.get_flag(cpu6502::flag::B);
+		ImGui::SameLine();
+		ImGui::Checkbox("B", &flag);
+		nes.cpu.set_flag(cpu6502::flag::B, flag);
+
+		flag = nes.cpu.get_flag(cpu6502::flag::D);
+		ImGui::SameLine();
+		ImGui::Checkbox("D", &flag);
+		nes.cpu.set_flag(cpu6502::flag::D, flag);
+
+		flag = nes.cpu.get_flag(cpu6502::flag::I);
+		ImGui::SameLine();
+		ImGui::Checkbox("I", &flag);
+		nes.cpu.set_flag(cpu6502::flag::I, flag);
+
+		flag = nes.cpu.get_flag(cpu6502::flag::Z);
+		ImGui::SameLine();
+		ImGui::Checkbox("Z", &flag);
+		nes.cpu.set_flag(cpu6502::flag::Z, flag);
+
+		flag = nes.cpu.get_flag(cpu6502::flag::C);
+		ImGui::SameLine();
+		ImGui::Checkbox("C", &flag);
+		nes.cpu.set_flag(cpu6502::flag::C, flag);
+
 		ImGui::End();
 	}
 
