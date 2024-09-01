@@ -42,14 +42,10 @@ struct App : Application {
 		u16 addr;
 		u8 ins_len;
 		u8 ins_bytes[3];
-		enum type_t {
-			entry,
-			repeat,
-		} type = entry;
-		u32 repeat_count = 0;
+		u32 repeat_count = 1;
 
 		inline bool operator==(ins_history_entry& other) {
-			if (type != other.type || addr != other.addr || ins_len != other.ins_len)
+			if (addr != other.addr || ins_len != other.ins_len)
 				return false;
 			for (int i = 0; i < ins_len; ++i)
 				if (ins_bytes[i] != other.ins_bytes[i])
@@ -102,34 +98,17 @@ struct App : Application {
 		bool add_jump_entry = false;
 		if (ins_history.num() >= 1) {
 			ins_history_entry& last = ins_history[ins_history.num() - 1];
-			if (last.type == ins_history_entry::repeat) {
-				ins_history_entry& repeated_entry = ins_history[ins_history.num() - 2];
-				if (repeated_entry == entry) {
-					last.repeat_count++;
-					add_new_entry = false;
-				}
-			}
-
 			if (last == entry) {
-				entry.type = ins_history_entry::repeat;
-				entry.repeat_count = 2; // Start at x2,x3...
+				++last.repeat_count;
+				add_new_entry = false;
 			}
 
 			// Add jump list entry
-			int show_jump_list_entries = 0;
-			if (last.type == ins_history_entry::entry) {
-				if (last.addr + last.ins_len != entry.addr)
+			if (last.addr + last.ins_len != entry.addr)
+				if (jump_list.num() > 0 && jump_list[jump_list.num()-1] == entry)
+					++jump_list[jump_list.num()-1].repeat_count;
+				else
 					jump_list.add(last);
-			} else {
-				ASSERT(last.type == ins_history_entry::repeat, "Last has to be a repeat");
-				ins_history_entry& repeated_entry = ins_history[ins_history.num() - 2];
-				if (repeated_entry == entry) {
-					if (jump_list[jump_list.num()-1].type == ins_history_entry::repeat)
-						jump_list[jump_list.num()-1].repeat_count++;
-					else
-						jump_list.add(last);
-				}
-			}
 		}
 
 		if (add_new_entry)
@@ -474,11 +453,12 @@ struct App : Application {
 		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
 			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable;
 
-		ImGui::BeginTable("##mem", 3, table_flags);
+		ImGui::BeginTable("##mem", 4, table_flags);
 
 		ImGui::TableSetupColumn("Addr");
 		ImGui::TableSetupColumn("Bytes");
 		ImGui::TableSetupColumn("Disas");
+		ImGui::TableSetupColumn("");
 		ImGui::TableHeadersRow();
 
 		ImGuiListClipper clipper;
@@ -487,30 +467,22 @@ struct App : Application {
 		clipper.Begin(list_to_show.num());
 
 		while (clipper.Step()) {
-			for (int i = clipper.DisplayStart, table_index=i; i < clipper.DisplayEnd; ++i, ++table_index) {
-
-				ins_history_entry& entry = list_to_show[table_index];
+			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
+				ins_history_entry& entry = list_to_show[i];
 				ImGui::TableNextRow();
-				switch (entry.type) {
-				case ins_history_entry::entry:
-					ImGui::TableSetColumnIndex(0);
-					ImGui::Text("%04x", entry.addr);
-					ImGui::TableSetColumnIndex(1);
-					for (int j = 0; j < entry.ins_len; ++j) {
-						ImGui::SameLine();
-						ImGui::Text("%02x", entry.ins_bytes[j]);
-					}
-					ImGui::TableSetColumnIndex(2);
-					ImGui::Text("%s", cpu6502::disassemble_instruction(entry.addr, &nes.mem).s);
-					break;
-				case ins_history_entry::repeat:
-					ImGui::TableSetColumnIndex(2);
-					ImGui::Text("x%d", entry.repeat_count);
-					break;
-				default:
-					ASSERT(false, "Unimplemented ins history entry type");
-					break;
+				ImGui::TableSetColumnIndex(0);
+				ImGui::Text("%04x", entry.addr);
+				ImGui::TableSetColumnIndex(1);
+				for (int j = 0; j < entry.ins_len; ++j) {
+					ImGui::SameLine();
+					ImGui::Text("%02x", entry.ins_bytes[j]);
 				}
+				ImGui::TableSetColumnIndex(2);
+				ImGui::Text("%s", cpu6502::disassemble_instruction(entry.addr, &nes.mem).s);
+
+				ImGui::TableSetColumnIndex(3);
+				if (entry.repeat_count > 1)
+					ImGui::Text("x%d", entry.repeat_count);
 			}
 		}
 
