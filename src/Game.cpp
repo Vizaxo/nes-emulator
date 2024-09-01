@@ -80,7 +80,7 @@ struct App : Application {
 
 
 		static bool focus_on_pc;
-		static bool focus_on_address;
+		bool focus_on_address = false;
 		static u16 focus_address;
 		ImGui::SameLine();
 		bool focus_on_pc_enabled_this_frame = ImGui::Checkbox("Focus PC", &focus_on_pc);
