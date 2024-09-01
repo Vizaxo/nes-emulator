@@ -457,7 +457,7 @@ struct cpu6502 {
 	u16 get_val_16(uop_target target) {
 		switch (target) {
 		case stack:
-			return 0x01 + (u16)s;
+			return 0x0100 + (u16)s;
 		}
 		return *get_target_16(target);
 	}
