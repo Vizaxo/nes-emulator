@@ -1044,6 +1044,7 @@ struct cpu6502 {
 			queue_uop(INC16, tmp16, tmp16);
 			queue_uop(READ_MEM, mem, tmp16);
 			queue_uop(MOV, pch, mem);
+			queue_uop(SET_FLAG, (uop_target)0xff, flag::I);
 			break;
 		default:
 			ASSERT(false, "Unimplemented instruction %d (opcode 0x%x)", instruction.op_type, opcode);
