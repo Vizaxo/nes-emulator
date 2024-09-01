@@ -60,6 +60,7 @@ struct App : Application {
 
 	void tick(float deltaTime) override {
 		update_ins_lengths();
+		executing_addr = nes.cpu.pc;
 
 		static constexpr int TICKS_PER_FRAME = 1000;
 		for (int i = 0; i < TICKS_PER_FRAME; ++i) {
