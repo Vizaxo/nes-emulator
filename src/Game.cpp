@@ -16,6 +16,8 @@ struct App : Application {
 	bool single_step_debugging = true;
 	bool first_tick = true;
 	u16 executing_addr = 0x0000;
+	u64 cycle_count = 0;
+	u64 instruction_count = 0;
 
 	bool mem_scroll_to_focus = 0;
 	u16 mem_focus_addr  = 0x0;
@@ -64,6 +66,8 @@ struct App : Application {
 		single_step();
 		ins_history.reset();
 		jump_list.reset();
+		instruction_count = 0;
+		cycle_count = 0;
 	}
 
 	void init(RefPtr<Renderer> renderer, PAL::WindowHandle h) override {
@@ -121,6 +125,7 @@ struct App : Application {
 		// Execute until the next instruction is fetched
 		do {
 			nes.tick();
+			++cycle_count;
 
 			// Data break
 			if (nes.cpu.pinout.a == data_break_addr) {
@@ -141,6 +146,7 @@ struct App : Application {
 		if (break_on_opcode && nes.mem[executing_addr] == break_opcode) {
 			single_step_debugging = true;
 		}
+		++instruction_count;
 	}
 
 	void tick(float deltaTime) override {
@@ -183,6 +189,8 @@ struct App : Application {
 		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - resetSize.x);
 		if (ImGui::Button("Reset", resetSize))
 			reset_nes();
+
+		ImGui::Text("Instructions: %ld\tCycles: %ld", instruction_count, cycle_count);
 
 		bool focus_on_address_enabled_this_frame = ImGui::InputScalar("Focus addr", ImGuiDataType_U16, &focus_address, 0, 0, "%04x");
 		if (focus_on_address_enabled_this_frame) {
