@@ -756,10 +756,10 @@ struct cpu6502 {
 			switch (instruction.addr_mode) {
 			case op::abs:
 				fetch_pc_byte();
-				queue_uop(MOV, tmp, mem);
+				queue_uop(MOV, tmp_bl, mem);
 				fetch_pc_byte();
-				queue_uop(MOV, tmp_high, mem);
-				queue_uop(MOV16, pc16, tmp16);
+				queue_uop(MOV, tmp_bh, mem);
+				queue_uop(MOV16, pc16, tmp_b16);
 				break;
 			case op::ind:
 				fetch_pc_byte();
