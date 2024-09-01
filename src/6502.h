@@ -854,6 +854,7 @@ struct cpu6502 {
 				queue_uop(READ_ZPG, mem, tmp_bl);
 			break;
 		default:
+			// TODO: this shouldn't just crash. Show something in the GUI.
 			ASSERT(false, "Unimplemented addressing mode %d (opcode %x)", instruction.addr_mode, opcode);
 			break;
 		}
@@ -1218,7 +1219,7 @@ struct cpu6502 {
 		} interrupt = none;
 
 		// TODO: proper handling of falling edge and buffering of interrupts
-		if (!pinout.irqN)
+		if (!pinout.irqN && !get_flag(flag::I))
 			interrupt = irq;
 		if (!pinout.nmiN)
 			interrupt = nmi;
