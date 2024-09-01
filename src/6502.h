@@ -139,6 +139,7 @@ struct cpu6502 {
 		X,
 		Y,
 		S,
+		stack, // 16-bit address at $01LL, with $LL formed by s
 		pc16,
 		pcl,
 		pch,
@@ -454,6 +455,10 @@ struct cpu6502 {
 	}
 
 	u16 get_val_16(uop_target target) {
+		switch (target) {
+		case stack:
+			return 0x01 + (u16)s;
+		}
 		return *get_target_16(target);
 	}
 
@@ -1011,6 +1016,10 @@ struct cpu6502 {
 			break;
 		case op::BEQ:
 			queue_uop(BRANCH_FLAG_SET, mem, (u16)flag::Z);
+			break;
+		case op::PHA:
+			queue_uop(WRITE_MEM, stack, A);
+			queue_uop(DEC, S, S);
 			break;
 		default:
 			ASSERT(false, "Unimplemented instruction %d (opcode 0x%x)", instruction.op_type, opcode);
