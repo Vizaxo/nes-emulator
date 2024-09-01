@@ -23,6 +23,7 @@ struct App : Application {
 	struct disas_entry {
 		bool breakpoint;
 		u8 ins_len;
+		u8 ins_bytes[3];
 	};
 	disas_entry ins_metadata[Memory::MEM_MAX+1];
 
@@ -56,6 +57,9 @@ struct App : Application {
 		for (int addr = 0; addr < Memory::MEM_MAX; ++addr) {
 			u8 len = cpu6502::get_ins_length(addr, &nes.mem);
 			ins_metadata[addr].ins_len = len;
+			ins_metadata[addr].ins_bytes[0] = nes.mem[addr];
+			ins_metadata[addr].ins_bytes[1] = nes.mem[addr+2];
+			ins_metadata[addr].ins_bytes[2] = nes.mem[addr+3];
 		}
 	}
 
@@ -126,10 +130,12 @@ struct App : Application {
 		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
 			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable
 			| ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable;
-		ImGui::BeginTable("Disas", 3, table_flags);
+		ImGui::BeginTable("Disas", 5, table_flags);
 		ImGui::TableSetupScrollFreeze(0, 1); // Pin top row
 		ImGui::TableSetupColumn("brk", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20.f);
 		ImGui::TableSetupColumn("pc", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 20.f);
+		ImGui::TableSetupColumn("Addr");
+		ImGui::TableSetupColumn("Bytes");
 		ImGui::TableSetupColumn("Disas");
 		ImGui::TableHeadersRow();
 
@@ -173,6 +179,13 @@ struct App : Application {
 						ImGui::TextUnformatted("->");
 					}
 					ImGui::TableSetColumnIndex(2);
+					ImGui::Text("%04x", addr);
+					ImGui::TableSetColumnIndex(3);
+					for (int j = 0; j < ret.ins_len; ++j) {
+						ImGui::SameLine();
+						ImGui::Text("%02x", ret.ins_bytes[j]);
+					}
+					ImGui::TableSetColumnIndex(4);
 					ImGui::TextUnformatted(cpu6502::disassemble_instruction(addr, &nes.mem).s);
 					addr += ret.ins_len;
 					ImGui::PopID();

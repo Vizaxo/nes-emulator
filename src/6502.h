@@ -718,21 +718,7 @@ struct cpu6502 {
 			break;
 		}
 
-		str ret_str;
-		switch (ins_length) {
-		case 1:
-			ret_str = str::strf("%04x:\t%02x\t\t%s %s", addr, opcode, print_op_type(instruction.op_type).s, addr_mode.s);
-			break;
-		case 2:
-			ret_str = str::strf("%04x:\t%02x%02x\t\t%s %s", addr, opcode, ins_bytes[1], print_op_type(instruction.op_type).s, addr_mode.s);
-			break;
-		case 3:
-			ret_str = str::strf("%04x:\t%02x%02x%02x\t\t%s %s", addr, opcode, ins_bytes[2], ins_bytes[3], print_op_type(instruction.op_type).s, addr_mode.s);
-			break;
-		default:
-			ASSERT(false, "Unimplemented print for instruction length %d", ins_length);
-			break;
-		}
+		str ret_str = str::strf("%s %s", print_op_type(instruction.op_type).s, addr_mode.s);
 
 		return ret_str;
 	}
