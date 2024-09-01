@@ -17,6 +17,9 @@ struct App : Application {
 	bool first_tick = true;
 	u16 executing_addr = 0x0000;
 
+	bool mem_scroll_to_focus = 0;
+	u16 mem_focus_addr;
+
 	struct disas_entry {
 		bool breakpoint;
 		u8 ins_len;
@@ -160,10 +163,11 @@ struct App : Application {
 
 	void draw_registers() {
 		ImGui::Begin("CPU State");
-		ImGui::BeginTable("Registers", 3);
+		ImGui::BeginTable("Registers", 4);
 		ImGui::TableSetupColumn("Reg");
 		ImGui::TableSetupColumn("dec");
 		ImGui::TableSetupColumn("hex");
+		ImGui::TableSetupColumn("Mem focus");
 		ImGui::TableHeadersRow();
 
 		struct reg_entry {
@@ -196,6 +200,11 @@ struct App : Application {
 		ImGui::InputScalar("##dec", ImGuiDataType_U16, &nes.cpu.pc, 0, 0, "%d");
 		ImGui::TableSetColumnIndex(2);
 		ImGui::InputScalar("##hex", ImGuiDataType_U16, &nes.cpu.pc, 0, 0, "%02x");
+		ImGui::TableSetColumnIndex(3);
+		if (ImGui::Button("Focus")) {
+			mem_scroll_to_focus = true;
+			mem_focus_addr = nes.cpu.pc;
+		}
 		ImGui::PopID();
 
 		ImGui::EndTable();
@@ -205,11 +214,14 @@ struct App : Application {
 	void draw_memory_view() {
 		ImGui::Begin("Memory");
 
+		mem_scroll_to_focus |= ImGui::InputScalar("Focus addr", ImGuiDataType_U16, &mem_focus_addr, 0, 0, "%04x");
+
 		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
 			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable;
 
 		static int num_columns = 8;
 		ImGui::InputInt("Num columns", &num_columns);
+
 		ImGui::BeginTable("##mem", num_columns+1, table_flags);
 
 		for (int i = 0; i < num_columns; i++) {
@@ -237,6 +249,10 @@ struct App : Application {
 				}
 			}
 		}
+
+		if (mem_scroll_to_focus)
+			ImGui::SetScrollY(clipper.ItemsHeight * floor(mem_focus_addr / num_columns));
+		mem_scroll_to_focus = false;
 
 		ImGui::EndTable();
 		ImGui::End();
