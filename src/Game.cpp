@@ -187,9 +187,9 @@ struct App : Application {
 			ImGui::TableSetColumnIndex(0);
 			ImGui::TextUnformatted(regs[i].name.s);
 			ImGui::TableSetColumnIndex(1);
-			ImGui::InputScalar("##dec", ImGuiDataType_U8, &nes.cpu.a, 0, 0, "%d");
+			ImGui::InputScalar("##dec", ImGuiDataType_U8, regs[i].reg, 0, 0, "%d");
 			ImGui::TableSetColumnIndex(2);
-			ImGui::InputScalar("##hex", ImGuiDataType_U8, &nes.cpu.a, 0, 0, "%02x");
+			ImGui::InputScalar("##hex", ImGuiDataType_U8, regs[i].reg, 0, 0, "%02x");
 			ImGui::PopID();
 		}
 		ImGui::PushID(5);
