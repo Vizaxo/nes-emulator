@@ -1316,9 +1316,6 @@ struct cpu6502 {
 			case CATCH_INFINITE_LOOP:
 			{
 				u16 jmp_target = get_val_16(u.target);
-				if (jmp_target == pc-3)
-					// TODO: this is valid in non-test code as interrupts can escape it.
-					ASSERT(false, "Infinite loop detected");
 				break;
 			}
 			default:
