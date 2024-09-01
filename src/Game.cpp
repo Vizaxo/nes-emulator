@@ -119,39 +119,44 @@ struct App : Application {
 			ins_history.add(entry);
 	}
 
+	void single_cycle() {
+		nes.tick();
+		++cycle_count;
+
+		// Data break
+		if (nes.cpu.pinout.a == data_break_addr) {
+			if ((nes.cpu.pinout.rw == RW_READ && data_break_mode & read)
+				|| (nes.cpu.pinout.rw == RW_WRITE && data_break_mode & write)) {
+				if (!(data_break_mode & specific_val) || nes.mem.pinout.d == data_break_val) {
+					single_step_debugging = true;
+				}
+			}
+		}
+
+		if (nes.cpu.fetching) {
+			executing_addr = nes.cpu.pc;
+			++instruction_count;
+		}
+	}
+
 	void single_step() {
 		add_ins_history_entry();
 
 		// Execute until the next instruction is fetched
 		do {
-			nes.tick();
-			++cycle_count;
-
-			// Data break
-			if (nes.cpu.pinout.a == data_break_addr) {
-				if ((nes.cpu.pinout.rw == RW_READ && data_break_mode & read)
-					|| (nes.cpu.pinout.rw == RW_WRITE && data_break_mode & write)) {
-					if (!(data_break_mode & specific_val) || nes.mem.pinout.d == data_break_val) {
-						single_step_debugging = true;
-						break;
-					}
-				}
-			}
+			single_cycle();
 		} while (!nes.cpu.fetching);
 
-		executing_addr = nes.cpu.pc;
-		if (ins_metadata[nes.cpu.pc].breakpoint) {
+		if (ins_metadata[executing_addr].breakpoint) {
 			single_step_debugging = true;
 		}
 		if (break_on_opcode && nes.mem[executing_addr] == break_opcode) {
 			single_step_debugging = true;
 		}
-		++instruction_count;
 	}
 
 	void tick(float deltaTime) override {
 		update_ins_lengths();
-		executing_addr = nes.cpu.pc;
 
 		for (int i = 0; i < ticks_per_frame; ++i) {
 			if (single_step_debugging)
@@ -170,7 +175,10 @@ struct App : Application {
 
 		ImGui::SameLine();
 		if (ImGui::Button("Single step"))
-			single_step(); //TODO: probably shouldn't be in the render function.
+			single_step();
+		ImGui::SameLine();
+		if (ImGui::Button("Single cycle"))
+			single_cycle();
 
 		ImGui::SameLine();
 		static bool focus_on_pc;
@@ -180,7 +188,7 @@ struct App : Application {
 		bool focus_on_pc_enabled_this_frame = ImGui::Checkbox("Focus PC", &focus_on_pc);
 		if (focus_on_pc) {
 			focus_on_address = true;
-			focus_address = nes.cpu.pc;
+			focus_address = executing_addr;
 		}
 
 		float resetWidth = ImGui::CalcTextSize("Reset").x + ImGui::GetStyle().FramePadding.x*2.f;
