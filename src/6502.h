@@ -755,9 +755,9 @@ struct cpu6502 {
 			break;
 		case op::absX:
 			fetch_pc_byte();
-			queue_uop(MOV, tmp, mem);
+			queue_uop(MOV, tmp_bl, mem);
 			fetch_pc_byte();
-			queue_uop(MOV, tmp_high, mem);
+			queue_uop(MOV, tmp_bh, mem);
 			queue_uop(ADC16_NOFLAG, tmp_b16, X);
 			if (instruction.addr_behaviour == op::read_byte)
 				queue_uop(READ_MEM, mem, tmp_b16);
