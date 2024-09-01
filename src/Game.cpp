@@ -445,7 +445,7 @@ struct App : Application {
 		ImGui::Begin("Instruction history");
 
 		static bool show_jump_list = false;
-		ImGui::Checkbox("Jump list", &show_jump_list);
+		bool jump_list_updated_this_frame = ImGui::Checkbox("Jump list", &show_jump_list);
 
 		ImGui::SameLine();
 		static bool scroll_to_end = true;
@@ -457,7 +457,7 @@ struct App : Application {
 		ImGui::InputScalar("##filteraddr", ImGuiDataType_U16, &filter_list_addr, 0, 0, "%04x");
 		ImGui::SameLine();
 		static bool should_filter_list;
-		ImGui::Checkbox("Filter list", &should_filter_list);
+		bool should_filter_list_updated_this_frame = ImGui::Checkbox("Filter list", &should_filter_list);
 
 		ImGui::BeginTable("##mem", 4, table_flags);
 
@@ -521,7 +521,11 @@ struct App : Application {
 		scroll_y = ImGui::GetScrollY();
 		static float last_requested_scroll_y = scroll_y;
 
-		if (!scroll_to_end_updated_this_frame && scroll_y != last_requested_scroll_y)
+		// TODO: this doesn't work. 1 frame out? Scroll max y changing between frames?
+		if (!scroll_to_end_updated_this_frame
+			&& !jump_list_updated_this_frame
+			&& !should_filter_list_updated_this_frame
+			&& scroll_y != last_requested_scroll_y)
 			scroll_to_end = false;
 
 		if (scroll_to_end) {
