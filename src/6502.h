@@ -1188,6 +1188,8 @@ struct cpu6502 {
 	}
 
 	void init() {
+		pinout.irqN = true;
+		pinout.nmiN = true;
 		build_opcode_table();
 	}
 
@@ -1208,6 +1210,18 @@ struct cpu6502 {
 			queue_uop(MOV, pch, mem);
 			return;
 		}
+
+		enum interrupt_t {
+			none,
+			irq,
+			nmi,
+		} interrupt = none;
+
+		// TODO: proper handling of falling edge and buffering of interrupts
+		if (!pinout.irqN)
+			interrupt = irq;
+		if (!pinout.nmiN)
+			interrupt = nmi;
 
 		fetching = false;
 
@@ -1240,13 +1254,31 @@ struct cpu6502 {
 				end_cycle = true;
 				break;
 			case FETCH:
-				ASSERT(u.target == mem, "FETCH must fetch from mem")
+				ASSERT(u.target == mem, "FETCH must fetch from mem");
 
-				fetching = true;
-				fetch_addr = pc;
-				end_cycle = true;
-				fetch_pc_byte();
-				queue_uop(DECODE, mem);
+				if (interrupt != none) {
+					queue_uop(WRITE_MEM, stack, pch);
+					queue_uop(DEC_NOFLAG, S, S);
+					queue_uop(WRITE_MEM, stack, pcl);
+					queue_uop(DEC_NOFLAG, S, S);
+					queue_uop(WRITE_MEM, stack, P);
+					queue_uop(DEC_NOFLAG, S, S);
+					queue_uop(LDIMM16, tmp16, interrupt == irq ? IRQ_VECTOR : NMI_VECTOR);
+					queue_uop(READ_MEM, mem, tmp16);
+					queue_uop(MOV, pcl, mem);
+					queue_uop(INC16, tmp16, tmp16);
+					queue_uop(READ_MEM, mem, tmp16);
+					queue_uop(MOV, pch, mem);
+					queue_uop(SET_FLAG, (uop_target)0xff, flag::I);
+					pinout.irqN = true;
+					pinout.nmiN = true;
+				} else {
+					fetching = true;
+					fetch_addr = pc;
+					end_cycle = true;
+					fetch_pc_byte();
+					queue_uop(DECODE, mem);
+				}
 				break;
 			case DECODE:
 			{

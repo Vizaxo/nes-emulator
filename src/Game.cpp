@@ -563,12 +563,25 @@ struct App : Application {
 		ImGui::End();
 	}
 
+	void draw_nes_control() {
+		ImGui::Begin("Nes control");
+
+		if (ImGui::Button("IRQ"))
+			nes.cpu.pinout.irqN = false;
+		ImGui::SameLine();
+		if (ImGui::Button("NMI"))
+			nes.cpu.pinout.nmiN = false;
+
+		ImGui::End();
+	}
+
 	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override {
 		draw_debugger();
 		draw_registers();
 		draw_memory_view();
 		draw_pinout_view();
 		draw_ins_history();
+		draw_nes_control();
 	}
 
 	void cleanup() override {}
