@@ -26,10 +26,18 @@ struct App : Application {
 	};
 	disas_entry ins_metadata[Memory::MEM_MAX+1];
 
+	struct ins_history_entry {
+		u16 addr;
+		u8 ins_len;
+		u8 ins_bytes[3];
+	};
+	Array<ins_history_entry> ins_history;
+
 	void reset_nes() {
 		nes.reset();
 		executing_addr = nes.cpu.pc;
 		single_step_debugging = true;
+		ins_history.reset();
 	}
 
 	void init(RefPtr<Renderer> renderer, PAL::WindowHandle h) override {
@@ -52,6 +60,12 @@ struct App : Application {
 	}
 
 	void single_step() {
+		ins_history_entry hist = {executing_addr, cpu6502::get_ins_length(executing_addr, &nes.mem)};
+		hist.ins_bytes[0] = nes.mem[executing_addr];
+		hist.ins_bytes[1] = nes.mem[executing_addr+1];
+		hist.ins_bytes[2] = nes.mem[executing_addr+2];
+		ins_history.add(hist);
+
 		// Execute until the next instruction is fetched
 		do {
 			nes.tick();
@@ -332,11 +346,48 @@ struct App : Application {
 		ImGui::End();
 	}
 
+	void draw_ins_history() {
+		ImGui::Begin("Instruction history");
+
+		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
+			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable;
+
+		ImGui::BeginTable("##mem", 3, table_flags);
+
+		ImGui::TableSetupColumn("Addr");
+		ImGui::TableSetupColumn("Bytes");
+		ImGui::TableSetupColumn("Disas");
+		ImGui::TableHeadersRow();
+
+		ImGuiListClipper clipper;
+		clipper.Begin(ins_history.num());
+
+		while (clipper.Step()) {
+			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
+				ins_history_entry& entry = ins_history[i];
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0);
+				ImGui::Text("%04x", entry.addr);
+				ImGui::TableSetColumnIndex(1);
+				for (int j = 0; j < entry.ins_len; ++j) {
+					ImGui::SameLine();
+					ImGui::Text("%02x", entry.ins_bytes[j]);
+				}
+				ImGui::TableSetColumnIndex(2);
+				ImGui::Text("%s", cpu6502::disassemble_instruction(entry.addr, &nes.mem).s);
+			}
+		}
+
+		ImGui::EndTable();
+		ImGui::End();
+	}
+
 	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override {
 		draw_debugger();
 		draw_registers();
 		draw_memory_view();
 		draw_pinout_view();
+		draw_ins_history();
 	}
 
 	void cleanup() override {}
