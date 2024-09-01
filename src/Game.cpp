@@ -453,6 +453,12 @@ struct App : Application {
 		static ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg
 			| ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable;
 
+		static u16 filter_list_addr;
+		ImGui::InputScalar("##filteraddr", ImGuiDataType_U16, &filter_list_addr, 0, 0, "%04x");
+		ImGui::SameLine();
+		static bool should_filter_list;
+		ImGui::Checkbox("Filter list", &should_filter_list);
+
 		ImGui::BeginTable("##mem", 4, table_flags);
 
 		ImGui::TableSetupColumn("Addr");
@@ -464,11 +470,36 @@ struct App : Application {
 		ImGuiListClipper clipper;
 
 		Array<ins_history_entry>& list_to_show = show_jump_list ? jump_list : ins_history;
-		clipper.Begin(list_to_show.num());
+		int show_num = 0;
+		if (should_filter_list) {
+			for (int i = 0; i < list_to_show.num(); ++i)
+				if (list_to_show[i].addr == filter_list_addr)
+					++show_num;
+		} else {
+			show_num = list_to_show.num();
+		}
+		clipper.Begin(show_num);
 
 		while (clipper.Step()) {
-			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
-				ins_history_entry& entry = list_to_show[i];
+			int list_index = 0;
+			if (should_filter_list) {
+				// Simulate hidden rows
+				for (int row = 0; row < clipper.DisplayStart; ++row,++list_index)
+					while (list_index < list_to_show.num() && list_to_show[list_index].addr != filter_list_addr)
+						++list_index;
+			} else {
+				list_index = clipper.DisplayStart;
+			}
+
+			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i,++list_index) {
+				if (should_filter_list)
+					while (list_index < list_to_show.num() && list_to_show[list_index].addr != filter_list_addr)
+						++list_index;
+
+				if (!should_filter_list)
+					ASSERT(list_index == i, "For non-filtered list, index should be i");
+
+				ins_history_entry& entry = list_to_show[list_index];
 				ImGui::TableNextRow();
 				ImGui::TableSetColumnIndex(0);
 				ImGui::Text("%04x", entry.addr);
