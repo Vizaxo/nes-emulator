@@ -773,7 +773,7 @@ struct cpu6502 {
 				queue_uop(INC16, tmp16);
 				queue_uop(READ_MEM, mem, tmp16);
 				queue_uop(MOV, tmp_bh, mem);
-				queue_uop(MOV, pc16, tmp_b);
+				queue_uop(MOV16, pc16, tmp_b16);
 				break;
 			default:
 				ASSERT(false, "Illegal JMP addressing mode %d", instruction.addr_mode);
@@ -803,7 +803,7 @@ struct cpu6502 {
 			queue_uop(MOV, tmp, mem);
 			fetch_pc_byte();
 			queue_uop(MOV, tmp_high, mem);
-			queue_uop(ADC16_NOFLAG, tmp_b16, x);
+			queue_uop(ADC16_NOFLAG, tmp_b16, X);
 			if (instruction.addr_behaviour == op::read_byte)
 				queue_uop(READ_MEM, mem, tmp_b16);
 			break;
@@ -812,7 +812,7 @@ struct cpu6502 {
 			queue_uop(MOV, tmp, mem);
 			fetch_pc_byte();
 			queue_uop(MOV, tmp_high, mem);
-			queue_uop(ADC16_NOFLAG, tmp_b16, x);
+			queue_uop(ADC16_NOFLAG, tmp_b16, X);
 			if (instruction.addr_behaviour == op::read_byte)
 			queue_uop(READ_MEM, mem, tmp_b16);
 			break;
@@ -836,7 +836,7 @@ struct cpu6502 {
 		case op::Xind:
 			fetch_pc_byte();
 			queue_uop(MOV, tmp, mem);
-			queue_uop(ADD_NOFLAG, tmp, x);
+			queue_uop(ADD_NOFLAG, tmp, X);
 			queue_uop(READ_ZPG, mem, tmp);
 			queue_uop(MOV, tmp_bl, mem);
 			queue_uop(INC_NOFLAG, tmp);
@@ -853,7 +853,7 @@ struct cpu6502 {
 			queue_uop(INC_NOFLAG, tmp);
 			queue_uop(READ_ZPG, mem, tmp);
 			queue_uop(MOV, tmp_bh, mem);
-			queue_uop(ADC16_NOFLAG, tmp_b16, y);
+			queue_uop(ADC16_NOFLAG, tmp_b16, Y);
 			if (instruction.addr_behaviour == op::read_byte)
 				queue_uop(READ_MEM, mem, tmp_b16);
 			break;
