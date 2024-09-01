@@ -138,6 +138,7 @@ struct cpu6502 {
 		SET_FLAG,
 		BRANCH_FLAG_SET,
 		BRANCH_FLAG_UNSET,
+		BIT,
 	};
 	enum uop_target : u8 {
 		A,
@@ -1066,6 +1067,9 @@ struct cpu6502 {
 			queue_uop(READ_MEM, mem, stack);
 			queue_uop(MOV, pch, mem);
 			break;
+		case op::BIT:
+			queue_uop(BIT, A, mem);
+			break;
 		default:
 			ASSERT(false, "Unimplemented instruction %d (opcode 0x%x)", instruction.op_type, opcode);
 			break;
@@ -1340,6 +1344,14 @@ struct cpu6502 {
 					// TODO: extra cycle for page transition
 				}
 				break;
+			case BIT:
+			{
+				u8 m = get_val(u.src);
+				set_flag(flag::N, !!(m&(1<<7)));
+				set_flag(flag::V, !!(m&(1<<6)));
+				set_flag(flag::Z, !(m & get_val(u.target)));
+				break;
+			}
 			default:
 				ASSERT(false, "Unimplemented uop %d", u.uop_id);
 				break;
