@@ -992,7 +992,7 @@ struct cpu6502 {
 			queue_uop(DEC_NOFLAG, S, S);
 			break;
 		case op::PLA:
-			queue_uop(INC, S, S);
+			queue_uop(INC_NOFLAG, S, S);
 			queue_uop(READ_MEM, mem, stack);
 			queue_uop(MOV, A, mem);
 			break;
@@ -1002,7 +1002,7 @@ struct cpu6502 {
 			queue_uop(DEC_NOFLAG, S, S);
 			break;
 		case op::PLP:
-			queue_uop(INC, S, S);
+			queue_uop(INC_NOFLAG, S, S);
 			queue_uop(READ_MEM, mem, stack);
 			queue_uop(MOV, P, mem);
 			break;
@@ -1021,10 +1021,10 @@ struct cpu6502 {
 			queue_uop(MOV16, pc16, tmp_b16);
 			break;
 		case op::RTS:
-			queue_uop(INC, S, S);
+			queue_uop(INC_NOFLAG, S, S);
 			queue_uop(READ_MEM, mem, stack);
 			queue_uop(MOV, pcl, mem);
-			queue_uop(INC, S, S);
+			queue_uop(INC_NOFLAG, S, S);
 			queue_uop(READ_MEM, mem, stack);
 			queue_uop(MOV, pch, mem);
 			queue_uop(INC16, pc16, pc16);
