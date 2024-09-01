@@ -907,6 +907,12 @@ struct cpu6502 {
 		case op::CMP:
 			queue_uop(CMP, A, mem);
 			break;
+		case op::CPX:
+			queue_uop(CMP, X, mem);
+			break;
+		case op::CPY:
+			queue_uop(CMP, Y, mem);
+			break;
 		// TODO: which of these do I need to add memor writes to?
 		case op::SBC:
 			queue_uop(SBC, A, mem);
