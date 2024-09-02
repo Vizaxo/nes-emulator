@@ -161,7 +161,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\6502.h" />
+    <ClInclude Include="src\Memory.h" />
     <ClInclude Include="src\NES.h" />
+    <ClInclude Include="src\test_6502.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

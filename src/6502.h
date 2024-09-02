@@ -5,8 +5,7 @@
 #include <core/Assert.h>
 #include <core/Log.h>
 
-#define RW_READ 1
-#define RW_WRITE 0
+#include "Memory.h"
 
 #define NMI_VECTOR 0xfffa
 #define RES_VECTOR 0xfffc
@@ -19,44 +18,10 @@ u8 sign8(u16 d) {
 	return d & 0x80 ? 1 : 0;
 }
 
-struct Memory {
-	static constexpr u32 MEM_MAX = 0xffff;
-	u8 memory[MEM_MAX+1];
-
-	u8& operator[](u16 addr) {
-		// TODO: different memory banks
-		return memory[addr];
-	}
-
-	struct Pinout {
-		u16 a;
-		u8 d;
-		u8 rw : 1; // read/write. If high CPU is reading
-	} pinout;
-
-	void debug_set_all_mem(u8 d) {
-		for (int i = 0; i <= MEM_MAX; ++i)
-			memory[i] = d;
-	}
-
-	void debug_setmem(u16 a, u8 d) {
-		memory[a] = d;
-	}
-
-	void tick() {
-		if (pinout.rw == RW_READ)
-			pinout.d = memory[pinout.a];
-		else
-			memory[pinout.a] = pinout.d;
-	}
-};
-
 #define WRITE_LOW_BYTE(reg, val) do { reg = (reg & 0xff00) | (val & 0x00ff); } while(0);
 #define WRITE_HIGH_BYTE(reg, val) do { reg = (reg & 0x00ff) | ((u16)(val & 0x00ff) << 8); } while(0);
 
 struct cpu6502 {
-	Memory* debug_mem; // Should only be used for debug access
-
 	bool fetching = false;
 	u16 fetch_addr = 0x0000;
 
@@ -508,7 +473,7 @@ struct cpu6502 {
 		queue_uop(INC16, pc16);
 	}
 
-	static u8 debug_get_mem(u16 addr, Memory* mem) {
+	static u8 debug_get_mem(u16 addr, CPUMemory* mem) {
 		ASSERT(mem, "mem was nullptr");
 		return (*mem)[addr];
 	}
@@ -577,7 +542,7 @@ struct cpu6502 {
 		}
 	}
 
-	static u8 get_ins_length(u16 addr, Memory* mem) {
+	static u8 get_ins_length(u16 addr, CPUMemory* mem) {
 		u8 opcode = debug_get_mem(addr, mem);
 
 		op instruction = opcode_table[opcode];
@@ -620,7 +585,7 @@ struct cpu6502 {
 		ASSERT(false, "Should never reach here");
 	}
 
-	static str disassemble_instruction(u16 addr, Memory* mem) {
+	static str disassemble_instruction(u16 addr, CPUMemory* mem) {
 		str addr_mode;
 		u8 ins_length = 1;
 		u8 ins_bytes[3];
@@ -738,7 +703,7 @@ struct cpu6502 {
 		return ret_str;
 	}
 
-	static void print_instruction(u16 addr, Memory* mem) {
+	static void print_instruction(u16 addr, CPUMemory* mem) {
 		str ret = disassemble_instruction(addr, mem);
 		LOG(Log::INFO, cpuChan, "%s", ret.s);
 	}
