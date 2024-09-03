@@ -100,13 +100,17 @@ struct PPU {
 			base_nametable_addr += 0x400;
 			index_x -= 8;
 		}
-		if (index_y >= 16) {
-			index_y -= 16;
-		} else if (index_y >= 8) {
+
+		// We do this at a finer grain because of the half-tile at the bottom of the nametable
+		index_y*=2;
+		if (index_y >= 30) {
+			index_y -= 30;
+		} else if (index_y >= 15) {
 			base_nametable_addr += 0x800;
-			index_y -= 8;
+			// TODO: y -= 0.5?
+			index_y -= 15;
 		}
-		u16 ret = base_nametable_addr + 0x3c0 + index_y * 8 + index_x;
+		u16 ret = base_nametable_addr + 0x3c0 + index_y * 4 + index_x;
 		ASSERT(ret >= 0x2000 && ret < 0x3000, "Attribute table addr out of range");
 		return ret;
 	}
