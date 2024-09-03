@@ -94,10 +94,10 @@ struct PPU {
 		u8 tile_offset_x = scroll_offset_x % 32;
 		u8 tile_offset_y = scroll_offset_y % 30;
 		*/
-		u8 nametable_index_x = scroll_offset_x / 8;
-		u8 nametable_index_y = scroll_offset_x / 8;
-		u8 tile_offset_x = scroll_offset_x % 8;
-		u8 tile_offset_y = scroll_offset_y % 8;
+		u8 nametable_index_x = scroll_offset_x / TILE_SIZE.x;
+		u8 nametable_index_y = scroll_offset_y / TILE_SIZE.y;
+		u8 tile_offset_x = scroll_offset_x % TILE_SIZE.x;
+		u8 tile_offset_y = scroll_offset_y % TILE_SIZE.y;
 
 		u8 bg_tile = ppu_mem.read(get_nametable_addr(nametable_index_x, nametable_index_y));
 
