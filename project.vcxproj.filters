@@ -35,5 +35,8 @@
     <ClInclude Include="src\PPU.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Palette.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

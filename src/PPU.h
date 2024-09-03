@@ -6,6 +6,7 @@
 
 #include "Memory.h"
 #include "6502.h"
+#include "Palette.h"
 
 struct PPU {
 	u64 cycles_total = 0;
@@ -25,8 +26,8 @@ struct PPU {
 	Colour framebuffer[DOTS_PER_FRAME];
 	u32 framebuffer_idx = 0;
 
-	void tick(cpu6502& cpu, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
-		framebuffer[framebuffer_idx] = run_cycle(cpu, cpu_mem, ppu_mem);
+	void tick(palette_t& palette, cpu6502& cpu, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
+		framebuffer[framebuffer_idx] = palette.colours[run_cycle(cpu, cpu_mem, ppu_mem)];
 		framebuffer_idx = (framebuffer_idx+1) % DOTS_PER_FRAME;
 	}
 
@@ -114,7 +115,7 @@ struct PPU {
 	int debug_scroll_x = 0;
 	int debug_scroll_y = 0;
 	bool use_debug_scroll = false;
-	Colour render_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
+	u8 render_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		u16 scroll_offset_x;
 		u16 scroll_offset_y;
 		if (use_debug_scroll) {
@@ -156,13 +157,13 @@ struct PPU {
 		u8 palette = (attribute >> attr_table_bit_offset) & 0x03;
 
 		struct palette_t {
-			Colour c[4];
+			u8 c[4];
 		};
 		palette_t palette_table[4] = {
-			{Colour::SKY_BLUE, Colour::RED, Colour::GREEN, Colour::BLUE},
-			{Colour::SKY_BLUE, Colour::LIGHT_GREY, Colour::DARK_GREY, Colour::WHITE},
-			{Colour::SKY_BLUE, Colour::LIGHT_GREY, Colour::DARK_GREY, Colour::RED},
-			{Colour::SKY_BLUE, Colour::LIGHT_GREY, Colour::DARK_GREY, Colour::BLUE},
+			{0x2c, 0x05, 0x1a, 0x2d},
+			{0x2c, 0x05, 0x1a, 0x2d},
+			{0x2c, 0x05, 0x1a, 0x2d},
+			{0x2c, 0x05, 0x1a, 0x2d},
 		};
 
 		u8 palette_index_l = !!(bg.bp0 & (1 << (7 - tile_offset_x)));
@@ -173,7 +174,7 @@ struct PPU {
 		return palette_table[palette].c[palette_index];
 	}
 
-	Colour run_cycle(cpu6502& cpu, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
+	u8 run_cycle(cpu6502& cpu, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		++cycles_total;
 		++dot;
 		if (dot >= 341) {
@@ -190,7 +191,7 @@ struct PPU {
 				cpu_mem.ppu_reg.ppustatus &= ~(1<<7 | 1<<6);
 			}
 			// pre-render scanline
-			return Colour::GREEN;
+			return 0x2b;
 		} else if (scanline <= 239) {
 			// Visible scanlines
 			if (scanline == 10 && dot==0)
@@ -198,7 +199,7 @@ struct PPU {
 			return render_dot(dot, scanline, cpu_mem, ppu_mem);
 		} else if (scanline == 240) {
 			// post-render scanline
-			return Colour::RED;
+			return 0x16;
 		} else if (scanline >= 241 && scanline <= 260) {
 			if (scanline == 241 && dot == 1) {
 				cpu_mem.ppu_reg.ppustatus |= 1<<7; // set vblank flag
@@ -206,7 +207,7 @@ struct PPU {
 					// TODO: pinout should be set on PPU; connected externally?
 					cpu.pinout.nmiN = false; // send nmi if nmi-enable bit set
 			}
-			return Colour::BLACK;
+			return 0x0f;
 			// vblank
 		}
 	}

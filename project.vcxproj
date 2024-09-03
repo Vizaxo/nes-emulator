@@ -162,6 +162,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\6502.h" />
+    <ClInclude Include="src\Palette.h" />
     <ClInclude Include="src\Memory.h" />
     <ClInclude Include="src\NES.h" />
     <ClInclude Include="src\PPU.h" />

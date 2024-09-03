@@ -6,6 +6,7 @@
 #include "Memory.h"
 #include "6502.h"
 #include "PPU.h"
+#include "Palette.h"
 
 static inline Log::Channel nesChan = { "NES" };
 
@@ -33,6 +34,7 @@ struct NES {
 	PPU ppu;
 	CPUMemory mem;
 	PPUMemory ppu_mem;
+	palette_t palette;
 	bool test_rom = false;
 
 	inline void reset() {
@@ -46,15 +48,16 @@ struct NES {
 		for (int i = 0; i < 20; i++)
 			cpu.tick();
 
+		palette = palette_t::load_palette("resources/ntscpalette.pal");
 	}
 
 	inline void tick() {
 		cpu.pinout.resN = true;
 		cpu.fetching = false;
 		cpu.tick();
-		ppu.tick(cpu, mem, ppu_mem);
-		ppu.tick(cpu, mem, ppu_mem);
-		ppu.tick(cpu, mem, ppu_mem);
+		ppu.tick(palette, cpu, mem, ppu_mem);
+		ppu.tick(palette, cpu, mem, ppu_mem);
+		ppu.tick(palette, cpu, mem, ppu_mem);
 
 		mem.pinout.a = cpu.pinout.a;
 		mem.pinout.rw = cpu.pinout.rw;
