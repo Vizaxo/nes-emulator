@@ -12,7 +12,7 @@ struct PPU {
 	u64 cycles_total = 0;
 
 	u16 dot = 0;
-	u16 scanline = 0;
+	i16 scanline = -1;
 	u32 frame = 0;
 
 	static constexpr u32 SCANLINES_PER_FRAME = 262;
@@ -38,7 +38,7 @@ struct PPU {
 
 	enum tile_type_t {
 		background,
-		foreground,
+		sprite,
 	};
 
 	u16 get_pattern_table_addr(u8 pattern_table_idx) {
@@ -51,7 +51,7 @@ struct PPU {
 
 	u16 get_pattern_table_addr(tile_type_t tile_type, CPUMemory& cpu_mem) {
 		switch (tile_type) {
-		case foreground:
+		case sprite:
 			return get_pattern_table_addr((cpu_mem.ppu_reg.ppuctrl & PPUReg::fg_pattern_table) >> 3);
 		case background:
 			return get_pattern_table_addr((cpu_mem.ppu_reg.ppuctrl & PPUReg::bg_pattern_table) >> 4);
@@ -115,11 +115,33 @@ struct PPU {
 		return ret;
 	}
 
+	u8 get_palette_index(u8 tile, tile_type_t tile_type, u8 tile_offset_x, u8 tile_offset_y, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
+		if (tile_offset_x >=8 || tile_offset_y >=8)
+			return 0; // tile off screen. transparent
+
+		tile_row_t bg = fetch_tile_row(tile, get_pattern_table_addr(tile_type, cpu_mem), tile_offset_y, ppu_mem);
+
+		u8 palette_index_l = !!(bg.bp0 & (1 << (7 - tile_offset_x)));
+		u8 palette_index_h = !!(bg.bp1 & (1 << (7 - tile_offset_x)));
+
+		u8 palette_index = palette_index_h << 1 | palette_index_l;
+		ASSERT(palette_index < 0x4, "Invalid palette index $%x", palette_index);
+
+		return palette_index;
+	}
+
+	u8 get_colour(u8 palette, u8 palette_index, tile_type_t tile_type, PPUMemory& ppu_mem) {
+		if (palette_index == 0)
+			// transparent
+			return ppu_mem.read(0x3f00);
+		else
+			return ppu_mem.read(0x3f00 + palette*4 + palette_index + tile_type==sprite ? 4*4 : 0);
+	}
 
 	int debug_scroll_x = 0;
 	int debug_scroll_y = 0;
 	bool use_debug_scroll = false;
-	u8 render_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
+	u8 get_background_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		u16 scroll_offset_x;
 		u16 scroll_offset_y;
 		if (use_debug_scroll) {
@@ -171,6 +193,52 @@ struct PPU {
 			return ppu_mem.read(0x3f00 + palette*4 + palette_index /* + sprite offset*/);
 	}
 
+	static constexpr u8 SECONDARY_OAM_SPRITE_COUNT = 8;
+	u8 render_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
+		struct sprite_t {
+			u8 y_coord;
+			u8 tile_index;
+			u8 attributes;
+			u8 x_coord;
+		};
+		sprite_t* chosen_sprite = nullptr;
+		u8 palette_index;
+		for (int i = 0; i < SECONDARY_OAM_SPRITE_COUNT; ++i) {
+			sprite_t& s = *((sprite_t*)ppu_mem.secondary_oam.memory + i);
+			if (s.x_coord > dot && s.x_coord < dot + 8) {
+				u8 x_pix = dot - s.x_coord - 1;
+				if (s.attributes&1<<6)
+					x_pix = 7 - x_pix;
+				u8 y_pix = scanline - s.y_coord - 1;
+				if (s.attributes&1<<7)
+					y_pix = 7 - y_pix;
+				palette_index = get_palette_index(s.tile_index, sprite, x_pix, y_pix, cpu_mem, ppu_mem);
+				if (palette_index != 0)
+					chosen_sprite = &s;
+			}
+		}
+		if (chosen_sprite && chosen_sprite->attributes & 1<<5)
+			return get_colour(chosen_sprite->attributes & 0x3, palette_index, sprite, ppu_mem);
+		else
+			return get_background_dot(dot, scanline, cpu_mem, ppu_mem);
+	}
+
+	void prepare_secondary_oam(i16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
+		u8 secondary_oam_index = 0;
+		if (dot == 260) {
+			for (int i = 0; i < 64; ++i) {
+				u8 y_coord = ppu_mem.oam.read(i*4 + 0);
+				if (y_coord > scanline && y_coord <= scanline + 8) {
+					// hit
+					memcpy(ppu_mem.secondary_oam.memory + 4*secondary_oam_index, ppu_mem.oam.memory + i*4, 4);
+				}
+				++secondary_oam_index;
+				if (secondary_oam_index >= SECONDARY_OAM_SPRITE_COUNT)
+					break;
+			}
+		}
+	}
+
 	u8 run_cycle(cpu6502& cpu, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		++cycles_total;
 		++dot;
@@ -178,18 +246,20 @@ struct PPU {
 			++scanline;
 			dot = 0;
 		}
-		if (scanline >= 262) {
+		if (scanline >= 261) {
 			++frame;
-			scanline = 0;
+			scanline = -1;
 		}
 
-		if (scanline == 261) {
+		if (scanline == -1) {
+			prepare_secondary_oam(scanline, cpu_mem, ppu_mem);
 			if (dot == 1) {
 				cpu_mem.ppu_reg.ppustatus &= ~(1<<7 | 1<<6);
 			}
 			// pre-render scanline
 			return 0x2b;
 		} else if (scanline <= 239) {
+			prepare_secondary_oam(scanline, cpu_mem, ppu_mem);
 			// Visible scanlines
 			if (scanline == 30 && dot==0)
 				cpu_mem.ppu_reg.ppustatus |= 1<<6; // fake a sprite 0 hit
@@ -291,6 +361,8 @@ struct PPU {
 			ImGui::InputScalar("ppuctrl", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppuctrl, 0, 0, "%04x");
 			ImGui::InputScalar("ppustatus", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppustatus, 0, 0, "%04x");
 			ImGui::InputScalar("ppuaddr", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppuaddr, 0, 0, "%04x");
+			ImGui::InputScalar("ppuscrollX", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppuscrollX, 0, 0, "%04x");
+			ImGui::InputScalar("ppuscrollY", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppuscrollY, 0, 0, "%04x");
 
 			if (ImGui::SliderInt("Scroll x", &debug_scroll_x, 0, 511, "%03x"))
 				use_debug_scroll = true;
