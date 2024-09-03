@@ -73,11 +73,11 @@ struct PPU {
 	}
 
 	u16 get_nametable_addr(u16 base_nametable_addr, u8 index_x, u8 index_y) {
-		return base_nametable_addr + index_y * 32 + index_x;
+		return (base_nametable_addr + index_y * 32 + index_x) % 0x1000 + 0x2000;
 	}
 
 	u16 get_attribute_table_addr(u16 base_nametable_addr, u8 index_x, u8 index_y) {
-		return base_nametable_addr + 0x3c0 + index_y * 8 + index_x;
+		return (base_nametable_addr + 0x3c0 + index_y * 8 + index_x) % 0x1000 + 0x2000;
 	}
 
 
