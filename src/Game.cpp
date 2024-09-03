@@ -587,6 +587,7 @@ struct App : Application {
 		draw_ins_history();
 		draw_nes_control();
 
+		nes.ppu.draw_ppu_vram(nes.ppu_mem);
 		nes.ppu.draw_framebuffer(renderer->rhi, nes.mem, nes.ppu_mem);
 	}
 
