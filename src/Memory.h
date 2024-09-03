@@ -146,10 +146,6 @@ struct PPUReg : Mem<PPUReg> {
 	u8 x = 0;
 	u8 w = 0;
 
-	u8 read(u16 addr) {
-
-	}
-
 	void inc_ppuaddr() {
 		ppuaddr += (ppuctrl & vram_incr) ? 32 : 1;
 	}
@@ -222,7 +218,6 @@ struct PPUReg : Mem<PPUReg> {
 		case 0x7:
 		{
 			u8 out = ppu_mem.read(ppuaddr);
-			if (!debug) inc_ppuaddr();
 			return out;
 		}
 		default:
