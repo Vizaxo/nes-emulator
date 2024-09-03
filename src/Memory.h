@@ -102,7 +102,8 @@ struct PPUMemory : Mem<PPUMemory> {
 		if (addr < 0x3f00)
 			return vram[addr % 0x800];
 		if (addr < 0x4000)
-			return palette_ram[addr % 0x20];
+			// Palette entry 0s are tied together
+			return palette_ram[((addr & 0b11) == 0b00 ? addr & ~(1<<4) : addr) % 0x20];
 		return 0x00;
 		//ASSERT(false, "PPU address %04x out of range", addr);
 	}
@@ -116,7 +117,8 @@ struct PPUMemory : Mem<PPUMemory> {
 		else if (addr < 0x3f00)
 			vram[addr % 0x800] = data;
 		else if (addr < 0x4000)
-			palette_ram[addr % 0x20] = data;
+			// Palette entry 0s are tied together
+			palette_ram[((addr & 0b11) == 0b00 ? addr & ~(1<<4) : addr) % 0x20] = data;
 		//ASSERT(false, "PPU address %04x out of range", addr);
 	}
 
