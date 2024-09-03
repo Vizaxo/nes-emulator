@@ -140,8 +140,6 @@ struct PPU {
 
 		tile_row_t bg = fetch_tile_row(bg_tile, get_pattern_table_addr(background, cpu_mem), tile_offset_y, ppu_mem);
 
-		Colour example_palette[4] = {Colour::TRANSPARENT, Colour::RED, Colour::GREEN, Colour::BLUE};
-
 		u8 attribute_table_idx_x = scroll_offset_x / 32;
 		u8 attribute_table_idx_y = scroll_offset_y / 32;
 		u8 attribute_table_offs_x = scroll_offset_x % 32;
@@ -154,7 +152,7 @@ struct PPU {
 		u8 attr_table_bt = attribute_table_offs_y >= 16; // 0: top. 1: bottom
 		u8 attr_table_bit_offset = attr_table_lr | attr_table_bt << 1;
 
-		u8 palette = (attribute >> attr_table_bit_offset) & 0x03;
+		u8 palette = (attribute >> (attr_table_bit_offset*2)) & 0x03;
 
 		u8 palette_index_l = !!(bg.bp0 & (1 << (7 - tile_offset_x)));
 		u8 palette_index_h = !!(bg.bp1 & (1 << (7 - tile_offset_x)));
