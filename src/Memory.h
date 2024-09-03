@@ -118,6 +118,15 @@ struct PPUMemory : Mem<PPUMemory> {
 };
 
 struct PPUReg : Mem<PPUReg> {
+	enum ppuctrl_bit : u8 {
+		base_nametable_addr = 0x3,
+		vram_incr = 0x4,
+		fg_pattern_table = 0x8,
+		bg_pattern_table =  0x10,
+		sprite_size = 0x20,
+		colour_on_ext = 0x40,
+		vblank_nmi = 0x80,
+	};
 	u8 ppuctrl;
 	u8 ppumask;
 	u8 ppustatus;

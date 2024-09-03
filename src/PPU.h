@@ -26,6 +26,37 @@ struct PPU {
 		framebuffer_idx = (framebuffer_idx+1) % DOTS_PER_FRAME;
 	}
 
+	struct tile_t {
+		u8 bp0;
+		u8 bp1;
+	};
+
+	enum tile_type_t {
+		background,
+		foreground,
+	};
+	tile_t fetch_tile(u8 tile, tile_type_t tile_type, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
+		u16 pattern_table;
+		ASSERT(!cpu_mem.ppu_reg.ppuctrl & PPUReg::sprite_size, "8x16 sprites not yet supported");
+		switch (tile_type) {
+		case foreground:
+			pattern_table = cpu_mem.ppu_reg.ppuctrl & PPUReg::fg_pattern_table ? 0x1000 : 0x0000;
+			break;
+		case background:
+			pattern_table = cpu_mem.ppu_reg.ppuctrl & PPUReg::bg_pattern_table ? 0x1000 : 0x0000;
+			break;
+		default:
+			ASSERT(false, "Invalid tile_type %d", tile_type);
+		}
+
+		u16 tile_offset = tile*2;
+
+		tile_t ret;
+		ret.bp0 = ppu_mem.read(pattern_table + tile_offset + 0);
+		ret.bp1 = ppu_mem.read(pattern_table + tile_offset + 1);
+		return ret;
+	}
+
 	Colour run_cycle(cpu6502& cpu, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		++cycles_total;
 		++dot;
