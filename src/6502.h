@@ -475,7 +475,7 @@ struct cpu6502 {
 
 	static u8 debug_get_mem(u16 addr, CPUMemory* mem, PPUMemory& ppu_mem) {
 		ASSERT(mem, "mem was nullptr");
-		return mem->read(addr, ppu_mem);
+		return mem->read(addr, ppu_mem, true);
 	}
 
 	static str print_op_type(op::op_type_t op_type) {

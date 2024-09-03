@@ -438,7 +438,7 @@ struct App : Application {
 				for (int j = 0; j < num_columns; j++) {
 					ImGui::PushID(addr+j);
 					ImGui::TableSetColumnIndex(j + 1);
-					u8 byte = nes.mem.read(addr + j, nes.ppu_mem);
+					u8 byte = nes.mem.read(addr + j, nes.ppu_mem, true);
 					if (ImGui::InputScalar("##byte", ImGuiDataType_U8, &byte, 0, 0, "%02x"))
 						nes.mem.write(addr + j, byte, nes.ppu_mem);
 					ImGui::PopID();
