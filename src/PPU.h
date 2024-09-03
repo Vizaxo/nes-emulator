@@ -190,6 +190,9 @@ struct PPU {
 	void draw_framebuffer(RefPtr<RHI> rhi, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		if (ImGui::Begin("PPU display")) {
 			ImGui::Text("Frame %d, scanline %d, dot %d", frame, scanline, dot);
+			ImGui::InputScalar("ppuctrl", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppuctrl, 0, 0, "%04x");
+			ImGui::InputScalar("ppustatus", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppustatus, 0, 0, "%04x");
+			ImGui::InputScalar("ppuaddr", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppuaddr, 0, 0, "%04x");
 
 			ImGui::SliderInt("Scroll x", &debug_scroll_x, 0, 511, "%03x");
 			ImGui::SliderInt("Scroll y", &debug_scroll_y, 0, 479, "%03x");
@@ -197,7 +200,6 @@ struct PPU {
 			static OwningPtr<RHI::Texture2D, true> fb_tex = nullptr;
 			fb_tex = rhi->createTexture(RHICommon::R8G8B8A8, (u8*)framebuffer, sizeof(Colour), v2i{ DOTS_PER_SCANLINE, SCANLINES_PER_FRAME }, true).getNullable();
 			ImGui::RHITexture(fb_tex.getRef().getNonNull());
-
 
 			{
 				static OwningPtr<RHI::Texture2D, true> pattern_table_0_tex = nullptr;
