@@ -26,14 +26,9 @@ template <int n>
 struct ROM {
 	u8 memory[n];
 
-	u8& operator[](u16 addr) {
-		static u8 dummy;
-		dummy = memory[addr];
-		return dummy;
-	}
-
-	void write(u16 addr, u8 data) {
-		memory[addr] = data;
+	u8 read(u16 addr) {
+		ASSERT(addr < n, "ROM address out of range. Accessed $%04x. Max addr $%04x", addr, n-1);
+		return memory[addr];
 	}
 };
 
@@ -58,6 +53,13 @@ struct Mem {
 	}
 };
 
+enum class mirror_mode_t {
+	horizontal,
+	vertical,
+	single_screen,
+	quad_screen,
+};
+
 struct PPUMemory : Mem<PPUMemory> {
 	ROM<0x2000> chr_rom;
 	RAM<0x0800> vram;
@@ -67,22 +69,17 @@ struct PPUMemory : Mem<PPUMemory> {
 	RAM<0x100> oam;
 	RAM<0x40> secondary_oam;
 
-	enum mirror_mode_t {
-		horizontal,
-		vertical,
-		single_screen,
-		quad_screen,
-	} mirror_mode;
+	mirror_mode_t mirror_mode;
 
 	u16 nametable_addr(u16 addr) {
 		switch (mirror_mode) {
-		case horizontal:
+		case mirror_mode_t::horizontal:
 			return (addr & ~0x400) | ((addr & 0x800) >> 1);
-		case vertical:
+		case mirror_mode_t::vertical:
 			return addr & ~0x800;
-		case single_screen:
+		case mirror_mode_t::single_screen:
 			//fallthrough
-		case quad_screen:
+		case mirror_mode_t::quad_screen:
 			ASSERT(false, "Unimplemented mirror mode %d", mirror_mode);
 			return addr % 0x400;
 		default:
@@ -91,29 +88,33 @@ struct PPUMemory : Mem<PPUMemory> {
 		}
 	}
 
-	u8& operator[](u16 addr) {
+	u8 read(u16 addr, PPUMemory& ppu_mem) { return read(addr); }
+	u8 read(u16 addr) {
 		if (addr < 0x2000)
-			return chr_rom[addr];
+			return chr_rom.read(addr);
 		if (addr < 0x3000)
 			return vram[nametable_addr(addr)];
 		if (addr < 0x3f00)
 			return vram[addr % 0x800];
 		if (addr < 0x4000)
 			return palette_ram[addr % 0x20];
-		static u8 dummy = 0;
-		return dummy;
+		return 0x00;
 		//ASSERT(false, "PPU address %04x out of range", addr);
-	}
-
-	u8 read(u16 addr, PPUMemory& ppu_mem) { return read(addr); }
-	u8 read(u16 addr) {
-		return (*this)[addr];
 	}
 
 	void write(u16 addr, u8 data, PPUMemory& ppu_mem) { write(addr, data); }
 	void write(u16 addr, u8 data) {
-		(*this)[addr] = data;
+		if (addr < 0x2000)
+			; // writing to rom
+		if (addr < 0x3000)
+			vram[nametable_addr(addr)] = data;
+		if (addr < 0x3f00)
+			vram[addr % 0x800] = data;
+		if (addr < 0x4000)
+			palette_ram[addr % 0x20] = data;
+		//ASSERT(false, "PPU address %04x out of range", addr);
 	}
+
 };
 
 struct PPUReg : Mem<PPUReg> {
@@ -245,7 +246,7 @@ struct CPUMemory : Mem<CPUMemory> {
 		if (addr < 0x4020)
 			return apu_io_disabled[addr % 0x08];
 		else
-			return cartridge_rom[addr - 0x4020];
+			return cartridge_rom.read(addr - 0x4020);
 	}
 
 	void debug_set_all_mem(u8 d, PPUMemory& ppu_mem) {
