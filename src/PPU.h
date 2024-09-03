@@ -73,7 +73,30 @@ struct PPU {
 	}
 
 	u16 get_nametable_addr(u8 index_x, u8 index_y) {
-		return PPUMemory::NAMETABLE_BASE_ADDR + index_y * 32 + index_x;
+		u8 nametable_idx = 0;
+		if (index_x > 32) {
+			index_x -= 32;
+			nametable_idx += 1;
+		}
+		if (index_y > 30) {
+			index_y -= 30;
+			nametable_idx += 2;
+		}
+		return PPUMemory::NAMETABLE_BASE_ADDR + (nametable_idx*0x400) + index_y * 32 + index_x;
+	}
+
+	u16 get_attribute_table_addr(u8 index_x, u8 index_y) {
+		u8 nametable_idx = 0;
+		if (index_x > 8) {
+			nametable_idx += 1;
+			index_x -= 8;
+		}
+		if (index_y > 8) {
+			nametable_idx += 2;
+			index_y -= 8;
+		}
+		u8 attr_table_idx = index_y * 8 + index_x;
+		return PPUMemory::NAMETABLE_BASE_ADDR + (nametable_idx*0x400) + 0x3c0 + attr_table_idx;
 	}
 
 
@@ -88,19 +111,13 @@ struct PPU {
 			scroll_offset_y = debug_scroll_y;
 		}
 		else {
-			scroll_offset_x = cpu_mem.ppu_reg.ppuscrollX + cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_x;
-			scroll_offset_y = cpu_mem.ppu_reg.ppuscrollY + cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_y;
+			scroll_offset_x = cpu_mem.ppu_reg.ppuscrollX + (!!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_x)*256);
+			scroll_offset_y = cpu_mem.ppu_reg.ppuscrollY + (!!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_y)*240);
 		}
 
 		scroll_offset_x += dot;
 		scroll_offset_y += scanline;
 
-		/*
-		u8 nametable_index_x = scroll_offset_x / 32;
-		u8 nametable_index_y = scroll_offset_x / 30;
-		u8 tile_offset_x = scroll_offset_x % 32;
-		u8 tile_offset_y = scroll_offset_y % 30;
-		*/
 		u8 nametable_index_x = scroll_offset_x / TILE_SIZE.x;
 		u8 nametable_index_y = scroll_offset_y / TILE_SIZE.y;
 		u8 tile_offset_x = scroll_offset_x % TILE_SIZE.x;
@@ -112,12 +129,36 @@ struct PPU {
 
 		Colour example_palette[4] = {Colour::TRANSPARENT, Colour::RED, Colour::GREEN, Colour::BLUE};
 
+		u8 attribute_table_idx_x = scroll_offset_x / 16;
+		u8 attribute_table_idx_y = scroll_offset_y / 16;
+		u8 attribute_table_offs_x = scroll_offset_x % 16;
+		u8 attribute_table_offs_y = scroll_offset_y % 16;
+		u8 attr_table_idx = attribute_table_idx_y * 8 + attribute_table_idx_x;
+
+		//u8 attribute = ppu_mem.read(PPUMemory::NAMETABLE_BASE_ADDR + 960 + attr_table_idx);
+		u8 attribute = ppu_mem.read(get_attribute_table_addr(attribute_table_idx_x, attribute_table_idx_y));
+		u8 attr_table_lr = attribute_table_offs_x >= 8; // 0: left. 1: right
+		u8 attr_table_bt = attribute_table_offs_y >= 8; // 0: top. 1: bottom
+		u8 attr_table_bit_offset = attr_table_lr | attr_table_bt << 1;
+
+		u8 palette = (attribute << attr_table_bit_offset) & 0x03;
+
+		struct palette_t {
+			Colour c[4];
+		};
+		palette_t palette_table[4] = {
+			{Colour::SKY_BLUE, Colour::RED, Colour::GREEN, Colour::BLUE},
+			{Colour::SKY_BLUE, Colour::LIGHT_GREY, Colour::DARK_GREY, Colour::WHITE},
+			{Colour::SKY_BLUE, Colour::LIGHT_GREY, Colour::DARK_GREY, Colour::RED},
+			{Colour::SKY_BLUE, Colour::LIGHT_GREY, Colour::DARK_GREY, Colour::BLUE},
+		};
+
 		u8 palette_index_l = !!(bg.bp0 & (1 << (7 - tile_offset_x)));
 		u8 palette_index_h = !!(bg.bp1 & (1 << (7 - tile_offset_x)));
 
 		u8 palette_index = palette_index_h << 1 | palette_index_l;
 		ASSERT(palette_index < 0x4, "Invalid palette index $%x", palette_index);
-		return example_palette[palette_index];
+		return palette_table[palette].c[palette_index];
 	}
 
 	Colour run_cycle(cpu6502& cpu, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
