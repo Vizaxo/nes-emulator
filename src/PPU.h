@@ -64,11 +64,13 @@ struct PPU {
 	}
 
 	void draw_framebuffer(RefPtr<RHI> rhi) {
-		OwningPtr<RHI::Texture2D> fb_tex = rhi->createTexture(RHICommon::R8G8B8A8, (u8*)framebuffer, sizeof(Colour), v2i{DOTS_PER_SCANLINE, SCANLINES_PER_FRAME}, true);
+		if (ImGui::Begin("PPU display")) {
+			static OwningPtr<RHI::Texture2D, true> fb_tex = nullptr;
+			fb_tex = rhi->createTexture(RHICommon::R8G8B8A8, (u8*)framebuffer, sizeof(Colour), v2i{ DOTS_PER_SCANLINE, SCANLINES_PER_FRAME }, true).getNullable();
 
-		ImGui::Begin("PPU display");
-		ImGui::Text("Frame %d, scanline %d, dot %d", frame, scanline, dot);
-		ImGui::RHITexture(fb_tex);
+			ImGui::Text("Frame %d, scanline %d, dot %d", frame, scanline, dot);
+			ImGui::RHITexture(fb_tex.getRef().getNonNull());
+		}
 		ImGui::End();
 	}
 };
