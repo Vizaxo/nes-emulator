@@ -86,17 +86,17 @@ struct App : Application {
 		for (int addr = 0; addr < Memory::MEM_MAX; ++addr) {
 			u8 len = cpu6502::get_ins_length(addr, &nes.mem, nes.ppu_mem);
 			ins_metadata[addr].ins_len = len;
-			ins_metadata[addr].ins_bytes[0] = nes.mem.read(addr, nes.ppu_mem);
-			ins_metadata[addr].ins_bytes[1] = nes.mem.read(addr+1, nes.ppu_mem);
-			ins_metadata[addr].ins_bytes[2] = nes.mem.read(addr+2, nes.ppu_mem);
+			ins_metadata[addr].ins_bytes[0] = nes.mem.debug_read(addr, nes.ppu_mem);
+			ins_metadata[addr].ins_bytes[1] = nes.mem.debug_read(addr+1, nes.ppu_mem);
+			ins_metadata[addr].ins_bytes[2] = nes.mem.debug_read(addr+2, nes.ppu_mem);
 		}
 	}
 
 	void add_ins_history_entry() {
 		ins_history_entry entry = {executing_addr, cpu6502::get_ins_length(executing_addr, &nes.mem, nes.ppu_mem)};
-		entry.ins_bytes[0] = nes.mem.read(executing_addr, nes.ppu_mem);
-		entry.ins_bytes[1] = nes.mem.read(executing_addr+1, nes.ppu_mem);
-		entry.ins_bytes[2] = nes.mem.read(executing_addr+2, nes.ppu_mem);
+		entry.ins_bytes[0] = nes.mem.debug_read(executing_addr, nes.ppu_mem);
+		entry.ins_bytes[1] = nes.mem.debug_read(executing_addr+1, nes.ppu_mem);
+		entry.ins_bytes[2] = nes.mem.debug_read(executing_addr+2, nes.ppu_mem);
 
 		bool add_new_entry = true;
 		bool add_jump_entry = false;

@@ -5,11 +5,13 @@
 
 #include "Memory.h"
 #include "6502.h"
+#include "PPU.h"
 
 static inline Log::Channel nesChan = { "NES" };
 
 struct NES {
 	cpu6502 cpu;
+	PPU ppu;
 	CPUMemory mem;
 	PPUMemory ppu_mem;
 	bool test_rom = false;
@@ -31,6 +33,9 @@ struct NES {
 		cpu.pinout.resN = true;
 		cpu.fetching = false;
 		cpu.tick();
+		ppu.tick(cpu, mem, ppu_mem);
+		ppu.tick(cpu, mem, ppu_mem);
+		ppu.tick(cpu, mem, ppu_mem);
 
 		mem.pinout.a = cpu.pinout.a;
 		mem.pinout.rw = cpu.pinout.rw;

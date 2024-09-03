@@ -32,5 +32,8 @@
     <ClInclude Include="src\test_6502.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\PPU.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

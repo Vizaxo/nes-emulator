@@ -158,13 +158,16 @@ struct PPUReg : Mem<PPUReg> {
 		}
 	}
 
-	u8 read(u16 addr, PPUMemory& ppu_mem) {
+	// Read without modifying any state
+	u8 debug_read(u16 addr, PPUMemory& ppu_mem) { return read(addr, ppu_mem, true); }
+	u8 read(u16 addr, PPUMemory& ppu_mem, bool debug = false) {
 		u8 junk_read = 0xea; // TODO: make this behave like the actual PPU bus?
 		switch (addr) {
 		case 0x0:
 		case 0x1:
 			return junk_read;
 		case 0x2:
+			if (!debug) w = 0;
 			return ppustatus;
 		case 0x3:
 			return junk_read;
@@ -177,7 +180,7 @@ struct PPUReg : Mem<PPUReg> {
 			return junk_read;
 		case 0x7:
 			ppu_mem.read(ppuaddr);
-			inc_ppuaddr();
+			if (!debug) inc_ppuaddr();
 			break;
 		default:
 			ASSERT(false, "Writing address out of PPU reg address $%04x", addr);
@@ -205,11 +208,12 @@ struct CPUMemory : Mem<CPUMemory> {
 		// can't write to cart rom (in mapper 0)
 	}
 
-	u8 read(u16 addr, PPUMemory& ppu_mem) {
+	u8 debug_read(u16 addr, PPUMemory& ppu_mem) { return read(addr, ppu_mem, true); }
+	u8 read(u16 addr, PPUMemory& ppu_mem, bool debug = false) {
 		if (addr < 0x2000)
 			return internal_ram[addr % 0x800];
 		if (addr < 0x4000)
-			return ppu_reg.read(addr % 0x08, ppu_mem);
+			return ppu_reg.read(addr % 0x08, ppu_mem, debug);
 		if (addr < 0x4018)
 			return apu_io_reg[addr % 0x18];
 		if (addr < 0x4020)
