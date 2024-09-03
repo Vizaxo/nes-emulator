@@ -147,6 +147,40 @@ struct PPU {
 		}
 	}
 
+	OwningPtr<RHI::Texture2D> get_pattern_table_texture(RefPtr<RHI> rhi, u8 pattern_table_idx, PPUMemory& ppu_mem) {
+		Colour pattern_table_buffer[0x100 * 0x100];
+		// Draw pattern table 0
+
+		struct tile_t {
+			tile_row_t rows[8];
+		};
+		tile_t tiles[0x100];
+		for (int tile = 0; tile < 0x100; ++tile)
+			for (int y = 0; y < 8; ++y)
+				// TODO: allow drawing specific pattern table, not bg/fg
+				tiles[tile].rows[y] = fetch_tile_row(tile, get_pattern_table_addr(pattern_table_idx), y, ppu_mem);
+
+		Colour greyscale_palette[4] = { Colour::BLACK, Colour::DARK_GREY, Colour::LIGHT_GREY, Colour::WHITE };
+
+		for (int x = 0; x < 0x100; ++x) {
+			for (int y = 0; y < 0x100; ++y) {
+				u16 x_tile = x / 8;
+				u16 y_tile = y / 8;
+				tile_t& tile = tiles[y_tile * 8 + x_tile];
+				tile_row_t& tile_row = tile.rows[y % 8];
+				u8 tile_offset_x = x % 8;
+				u8 palette_index_l = !!(tile_row.bp0 & (1 << (7 - tile_offset_x)));
+				u8 palette_index_h = !!(tile_row.bp1 & (1 << (7 - tile_offset_x)));
+
+				u8 palette_index = palette_index_h << 1 | palette_index_l;
+				ASSERT(palette_index < 0x4, "Invalid palette index $%x", palette_index);
+				pattern_table_buffer[y * 0x100 + x] = greyscale_palette[palette_index];
+			}
+		}
+
+		return rhi->createTexture(RHICommon::R8G8B8A8, (u8*)pattern_table_buffer, sizeof(Colour), v2i{ 0x100, 0x100 }, true);
+	}
+
 	void draw_framebuffer(RefPtr<RHI> rhi, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		if (ImGui::Begin("PPU display")) {
 			ImGui::Text("Frame %d, scanline %d, dot %d", frame, scanline, dot);
@@ -155,40 +189,15 @@ struct PPU {
 			fb_tex = rhi->createTexture(RHICommon::R8G8B8A8, (u8*)framebuffer, sizeof(Colour), v2i{ DOTS_PER_SCANLINE, SCANLINES_PER_FRAME }, true).getNullable();
 			ImGui::RHITexture(fb_tex.getRef().getNonNull());
 
+
 			{
-				static OwningPtr<RHI::Texture2D, true> pattern_table_tex = nullptr;
-				Colour pattern_table_buffer[0x100*0x100];
-				// Draw pattern table 0
-
-				struct tile_t {
-					tile_row_t rows[8];
-				};
-				tile_t tiles[0x100];
-				for (int tile = 0; tile < 0x100; ++tile)
-					for (int y = 0; y < 8; ++y)
-						// TODO: allow drawing specific pattern table, not bg/fg
-						tiles[tile].rows[y] = fetch_tile_row(tile, get_pattern_table_addr(1), y, ppu_mem);
-
-				Colour example_palette[4] = { Colour::TRANSPARENT, Colour::RED, Colour::GREEN, Colour::BLUE };
-
-				for (int x = 0; x < 0x100; ++x) {
-					for (int y = 0; y < 0x100; ++y) {
-						u16 x_tile = x / 8;
-						u16 y_tile = y / 8;
-						tile_t& tile = tiles[y_tile*8 + x_tile];
-						tile_row_t& tile_row = tile.rows[y%8];
-						u8 tile_offset_x = x % 8;
-						u8 palette_index_l = !!(tile_row.bp0 & (1 << (7 - tile_offset_x)));
-						u8 palette_index_h = !!(tile_row.bp1 & (1 << (7 - tile_offset_x)));
-
-						u8 palette_index = palette_index_h << 1 | palette_index_l;
-						ASSERT(palette_index < 0x4, "Invalid palette index $%x", palette_index);
-						pattern_table_buffer[y*0x100+x] = example_palette[palette_index];
-					}
-				}
-
-				pattern_table_tex = rhi->createTexture(RHICommon::R8G8B8A8, (u8*)pattern_table_buffer, sizeof(Colour), v2i{0x100, 0x100}, true).getNullable();
-				ImGui::RHITexture(pattern_table_tex.getRef().getNonNull());
+				static OwningPtr<RHI::Texture2D, true> pattern_table_0_tex = nullptr;
+				static OwningPtr<RHI::Texture2D, true> pattern_table_1_tex = nullptr;
+				pattern_table_0_tex = get_pattern_table_texture(rhi, 0, ppu_mem).getNullable();
+				pattern_table_1_tex = get_pattern_table_texture(rhi, 1, ppu_mem).getNullable();
+				ImGui::RHITexture(pattern_table_0_tex.getRef().getNonNull());
+				ImGui::SameLine();
+				ImGui::RHITexture(pattern_table_1_tex.getRef().getNonNull());
 			}
 		}
 		ImGui::End();
