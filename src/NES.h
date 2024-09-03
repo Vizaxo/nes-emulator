@@ -93,7 +93,7 @@ struct NES {
 		case mapper0:
 		{
 			ASSERT(prg_rom_size > 0 && prg_rom_size <= 2, "Mapper0 rom must be 16K or 32K");
-			for (int i = 0; i < prg_rom_size; ++i) {
+			for (int i = 2 - prg_rom_size; i < 2; ++i) {
 				size_t bytes_read = fread(mem.cartridge_rom.memory + (0x8000 - Memory::CARTRIDGE_ROM_START) + i*0x4000, 1, 0x4000, f);
 				ASSERT(bytes_read == 0x4000, "Could not read 16K from ROM");
 			}
