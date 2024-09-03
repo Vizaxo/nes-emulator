@@ -156,22 +156,17 @@ struct PPU {
 
 		u8 palette = (attribute >> attr_table_bit_offset) & 0x03;
 
-		struct palette_t {
-			u8 c[4];
-		};
-		palette_t palette_table[4] = {
-			{0x2c, 0x05, 0x1a, 0x2d},
-			{0x2c, 0x05, 0x1a, 0x2d},
-			{0x2c, 0x05, 0x1a, 0x2d},
-			{0x2c, 0x05, 0x1a, 0x2d},
-		};
-
 		u8 palette_index_l = !!(bg.bp0 & (1 << (7 - tile_offset_x)));
 		u8 palette_index_h = !!(bg.bp1 & (1 << (7 - tile_offset_x)));
 
 		u8 palette_index = palette_index_h << 1 | palette_index_l;
 		ASSERT(palette_index < 0x4, "Invalid palette index $%x", palette_index);
-		return palette_table[palette].c[palette_index];
+
+		if (palette_index == 0)
+			// transparent
+			return ppu_mem.read(0x3f00);
+		else
+			return ppu_mem.read(0x3f00 + palette*4 + palette_index /* + sprite offset*/);
 	}
 
 	u8 run_cycle(cpu6502& cpu, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
