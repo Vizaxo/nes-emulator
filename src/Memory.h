@@ -10,14 +10,17 @@ struct RAM {
 	u8 memory[n];
 
 	u8& operator[](u16 addr) {
+		ASSERT(addr < n, "RAM address out of range. Accessed $%04x. Max addr $%04x", addr, n-1);
 		return memory[addr];
 	}
 
 	void write(u16 addr, u8 data) {
+		ASSERT(addr < n, "RAM address out of range. Accessed $%04x. Max addr $%04x", addr, n-1);
 		memory[addr] = data;
 	}
 
 	u8 read(u16 addr) {
+		ASSERT(addr < n, "RAM address out of range. Accessed $%04x. Max addr $%04x", addr, n-1);
 		return memory[addr];
 	}
 };
@@ -61,6 +64,8 @@ enum class mirror_mode_t {
 };
 
 struct PPUMemory : Mem<PPUMemory> {
+	static constexpr u16 NAMETABLE_BASE_ADDR = 0x2000;
+
 	ROM<0x2000> chr_rom;
 	RAM<0x0800> vram;
 	RAM<0x20> palette_ram;
@@ -74,7 +79,7 @@ struct PPUMemory : Mem<PPUMemory> {
 	u16 nametable_addr(u16 addr) {
 		switch (mirror_mode) {
 		case mirror_mode_t::horizontal:
-			return (addr & ~0x400) | ((addr & 0x800) >> 1);
+			return (addr & ~0xc00) | ((addr & 0x800) >> 1);
 		case mirror_mode_t::vertical:
 			return addr & ~0x800;
 		case mirror_mode_t::single_screen:
@@ -93,7 +98,7 @@ struct PPUMemory : Mem<PPUMemory> {
 		if (addr < 0x2000)
 			return chr_rom.read(addr);
 		if (addr < 0x3000)
-			return vram[nametable_addr(addr)];
+			return vram[nametable_addr(addr) - NAMETABLE_BASE_ADDR];
 		if (addr < 0x3f00)
 			return vram[addr % 0x800];
 		if (addr < 0x4000)
@@ -106,11 +111,11 @@ struct PPUMemory : Mem<PPUMemory> {
 	void write(u16 addr, u8 data) {
 		if (addr < 0x2000)
 			; // writing to rom
-		if (addr < 0x3000)
-			vram[nametable_addr(addr)] = data;
-		if (addr < 0x3f00)
+		else if (addr < 0x3000)
+			vram[nametable_addr(addr) - NAMETABLE_BASE_ADDR] = data;
+		else if (addr < 0x3f00)
 			vram[addr % 0x800] = data;
-		if (addr < 0x4000)
+		else if (addr < 0x4000)
 			palette_ram[addr % 0x20] = data;
 		//ASSERT(false, "PPU address %04x out of range", addr);
 	}
