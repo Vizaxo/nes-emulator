@@ -82,7 +82,7 @@ struct NES {
 		u8 prg_rom_size = header[4]; // *16K
 		u8 chr_rom_size = header[5]; // *8k
 		mapper_t mapper = (mapper_t)((header[6]&flags_6::mapper_low)>>4 | header[7]&flags_7::mapper_high);
-		ppu_mem.mirror_mode = header[6] & flags_6::nametable ? mirror_mode_t::horizontal : mirror_mode_t::vertical;
+		ppu_mem.mirror_mode = header[6] & flags_6::nametable ? mirror_mode_t::vertical : mirror_mode_t::horizontal;
 
 		switch (mapper) {
 		case mapper0:
