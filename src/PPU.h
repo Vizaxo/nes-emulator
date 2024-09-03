@@ -86,7 +86,9 @@ struct PPU {
 			base_nametable_addr += 0x800;
 			index_y -= 60;
 		}
-		return base_nametable_addr + index_y * 32 + index_x;
+		u16 ret = base_nametable_addr + index_y * 32 + index_x;
+		ASSERT(ret >= 0x2000 && ret < 0x3000, "Nametable addr out of range");
+		return ret;
 	}
 
 	u16 get_attribute_table_addr(u8 index_x, u8 index_y) {
@@ -103,7 +105,9 @@ struct PPU {
 			base_nametable_addr += 0x800;
 			index_y -= 8;
 		}
-		return base_nametable_addr + 0x3c0 + index_y * 8 + index_x;
+		u16 ret = base_nametable_addr + 0x3c0 + index_y * 8 + index_x;
+		ASSERT(ret >= 0x2000 && ret < 0x3000, "Attribute table addr out of range");
+		return ret;
 	}
 
 
@@ -113,16 +117,12 @@ struct PPU {
 	Colour render_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		u16 scroll_offset_x;
 		u16 scroll_offset_y;
-		u8 base_nametable_addr_x;
-		u8 base_nametable_addr_y;
 		if (use_debug_scroll) {
-			scroll_offset_x = debug_scroll_x % 256;
-			scroll_offset_y = debug_scroll_y % 240;
-			base_nametable_addr_x = debug_scroll_x / 256;
-			base_nametable_addr_y = debug_scroll_y / 240;
+			scroll_offset_x = debug_scroll_x;
+			scroll_offset_y = debug_scroll_y;
 		} else {
-			base_nametable_addr_x = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_x);
-			base_nametable_addr_y = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_y);
+			u8 base_nametable_addr_x = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_x);
+			u8 base_nametable_addr_y = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_y);
 			scroll_offset_x = cpu_mem.ppu_reg.ppuscrollX + base_nametable_addr_x*256;
 			scroll_offset_y = cpu_mem.ppu_reg.ppuscrollY + base_nametable_addr_y*240;
 		}
