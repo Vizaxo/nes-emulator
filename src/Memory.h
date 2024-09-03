@@ -243,10 +243,30 @@ struct PPUReg : Mem<PPUReg> {
 	}
 };
 
+struct APUReg : Mem <APUReg> {
+	RAM<0x18> apu_io_reg;
+
+	void write(u16 addr, u8 data, u8* src, PPUMemory& ppu_mem) {
+		switch (addr) {
+		case 0x14:
+			// OAM DMA
+			// TODO: make this cycle accurate
+			memcpy(ppu_mem.oam.memory, src+data*0x100, 0x100);
+			return;
+		default:
+			return;
+		}
+	}
+
+	u8 read(u16 addr) {
+		return 0x0;
+	}
+};
+
 struct CPUMemory : Mem<CPUMemory> {
 	RAM<0x0800> internal_ram;
 	PPUReg ppu_reg;
-	RAM<0x18> apu_io_reg;
+	APUReg apu_io_reg;
 	RAM<0x08> apu_io_disabled;
 	ROM<0x10000-Memory::CARTRIDGE_ROM_START> cartridge_rom;
 
@@ -256,7 +276,9 @@ struct CPUMemory : Mem<CPUMemory> {
 		if (addr < 0x4000)
 			return ppu_reg.write(addr % 0x08, data, ppu_mem);
 		if (addr < 0x4018)
-			return apu_io_reg.write(addr % 0x18, data);
+			if (addr == 0x4014)
+				ASSERT(data < 0x08, "DMA reads from outside RAM not yet supported");
+			return apu_io_reg.write(addr - 0x4000, data, internal_ram.memory, ppu_mem);
 		if (addr < 0x4020)
 			return apu_io_disabled.write(addr % 0x08, data);
 		// can't write to cart rom (in mapper 0)
@@ -269,7 +291,7 @@ struct CPUMemory : Mem<CPUMemory> {
 		if (addr < 0x4000)
 			return ppu_reg.read(addr % 0x08, ppu_mem, debug);
 		if (addr < 0x4018)
-			return apu_io_reg[addr % 0x18];
+			return apu_io_reg.read(addr % 0x18);
 		if (addr < 0x4020)
 			return apu_io_disabled[addr % 0x08];
 		else
