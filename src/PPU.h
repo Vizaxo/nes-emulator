@@ -79,11 +79,18 @@ struct PPU {
 
 	int debug_scroll_x = 0;
 	int debug_scroll_y = 0;
+	bool use_debug_scroll = false;
 	Colour render_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
-		//u16 scroll_offset_x = cpu_mem.ppu_reg.ppuscrollX + cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_x;
-		//u16 scroll_offset_y = cpu_mem.ppu_reg.ppuscrollY + cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_y;
-		u16 scroll_offset_x = debug_scroll_x;
-		u16 scroll_offset_y = debug_scroll_y;
+		u16 scroll_offset_x;
+		u16 scroll_offset_y;
+		if (use_debug_scroll) {
+			scroll_offset_x = debug_scroll_x;
+			scroll_offset_y = debug_scroll_y;
+		}
+		else {
+			scroll_offset_x = cpu_mem.ppu_reg.ppuscrollX + cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_x;
+			scroll_offset_y = cpu_mem.ppu_reg.ppuscrollY + cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_y;
+		}
 
 		scroll_offset_x += dot;
 		scroll_offset_y += scanline;
@@ -234,8 +241,11 @@ struct PPU {
 			ImGui::InputScalar("ppustatus", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppustatus, 0, 0, "%04x");
 			ImGui::InputScalar("ppuaddr", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppuaddr, 0, 0, "%04x");
 
-			ImGui::SliderInt("Scroll x", &debug_scroll_x, 0, 511, "%03x");
-			ImGui::SliderInt("Scroll y", &debug_scroll_y, 0, 479, "%03x");
+			if (ImGui::SliderInt("Scroll x", &debug_scroll_x, 0, 511, "%03x"))
+				use_debug_scroll = true;
+			if (ImGui::SliderInt("Scroll y", &debug_scroll_y, 0, 479, "%03x"))
+				use_debug_scroll = true;
+			ImGui::Checkbox("Debug scroll", &use_debug_scroll);
 
 			static OwningPtr<RHI::Texture2D, true> fb_tex = nullptr;
 			fb_tex = rhi->createTexture(RHICommon::R8G8B8A8, (u8*)framebuffer, sizeof(Colour), v2i{ DOTS_PER_SCANLINE, SCANLINES_PER_FRAME }, true).getNullable();
