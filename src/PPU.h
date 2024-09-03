@@ -101,8 +101,7 @@ struct PPU {
 
 		u8 bg_tile = ppu_mem.read(get_nametable_addr(nametable_index_x, nametable_index_y));
 
-		//tile_row_t bg = fetch_tile_row(bg_tile, get_pattern_table_addr(background, cpu_mem), tile_offset_y, ppu_mem);
-		tile_row_t bg = fetch_tile_row(bg_tile, get_pattern_table_addr(1), tile_offset_y, ppu_mem);
+		tile_row_t bg = fetch_tile_row(bg_tile, get_pattern_table_addr(background, cpu_mem), tile_offset_y, ppu_mem);
 
 		Colour example_palette[4] = {Colour::TRANSPARENT, Colour::RED, Colour::GREEN, Colour::BLUE};
 
