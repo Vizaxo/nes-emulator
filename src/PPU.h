@@ -77,11 +77,13 @@ struct PPU {
 	}
 
 
+	int debug_scroll_x = 0;
+	int debug_scroll_y = 0;
 	Colour render_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		//u16 scroll_offset_x = cpu_mem.ppu_reg.ppuscrollX + cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_x;
 		//u16 scroll_offset_y = cpu_mem.ppu_reg.ppuscrollY + cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_y;
-		u16 scroll_offset_x = 0;
-		u16 scroll_offset_y = 0;
+		u16 scroll_offset_x = debug_scroll_x;
+		u16 scroll_offset_y = debug_scroll_y;
 
 		scroll_offset_x += dot;
 		scroll_offset_y += scanline;
@@ -188,6 +190,9 @@ struct PPU {
 	void draw_framebuffer(RefPtr<RHI> rhi, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		if (ImGui::Begin("PPU display")) {
 			ImGui::Text("Frame %d, scanline %d, dot %d", frame, scanline, dot);
+
+			ImGui::SliderInt("Scroll x", &debug_scroll_x, 0, 511, "%03x");
+			ImGui::SliderInt("Scroll y", &debug_scroll_y, 0, 479, "%03x");
 
 			static OwningPtr<RHI::Texture2D, true> fb_tex = nullptr;
 			fb_tex = rhi->createTexture(RHICommon::R8G8B8A8, (u8*)framebuffer, sizeof(Colour), v2i{ DOTS_PER_SCANLINE, SCANLINES_PER_FRAME }, true).getNullable();
