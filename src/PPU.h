@@ -72,12 +72,38 @@ struct PPU {
 		return ret;
 	}
 
-	u16 get_nametable_addr(u16 base_nametable_addr, u8 index_x, u8 index_y) {
-		return (base_nametable_addr + index_y * 32 + index_x) % 0x1000 + 0x2000;
+	u16 get_nametable_addr(u8 index_x, u8 index_y) {
+		u16 base_nametable_addr = 0x2000;
+		if (index_x >= 64) {
+			index_x -= 64;
+		} else if (index_x >= 32) {
+			base_nametable_addr += 0x400;
+			index_x -= 32;
+		}
+		if (index_y >= 60) {
+			index_y -= 60;
+		} else if (index_y >= 60) {
+			base_nametable_addr += 0x800;
+			index_y -= 60;
+		}
+		return base_nametable_addr + index_y * 32 + index_x;
 	}
 
-	u16 get_attribute_table_addr(u16 base_nametable_addr, u8 index_x, u8 index_y) {
-		return (base_nametable_addr + 0x3c0 + index_y * 8 + index_x) % 0x1000 + 0x2000;
+	u16 get_attribute_table_addr(u8 index_x, u8 index_y) {
+		u16 base_nametable_addr = 0x2000;
+		if (index_x >= 16) {
+			index_x -= 16;
+		} else if (index_x >= 8) {
+			base_nametable_addr += 0x400;
+			index_x -= 8;
+		}
+		if (index_y >= 16) {
+			index_y -= 16;
+		} else if (index_y >= 8) {
+			base_nametable_addr += 0x800;
+			index_y -= 8;
+		}
+		return base_nametable_addr + 0x3c0 + index_y * 8 + index_x;
 	}
 
 
@@ -87,17 +113,19 @@ struct PPU {
 	Colour render_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		u16 scroll_offset_x;
 		u16 scroll_offset_y;
+		u8 base_nametable_addr_x;
+		u8 base_nametable_addr_y;
 		if (use_debug_scroll) {
-			scroll_offset_x = debug_scroll_x;
-			scroll_offset_y = debug_scroll_y;
+			scroll_offset_x = debug_scroll_x % 256;
+			scroll_offset_y = debug_scroll_y % 240;
+			base_nametable_addr_x = debug_scroll_x / 256;
+			base_nametable_addr_y = debug_scroll_y / 240;
+		} else {
+			base_nametable_addr_x = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_x);
+			base_nametable_addr_y = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_y);
+			scroll_offset_x = cpu_mem.ppu_reg.ppuscrollX + base_nametable_addr_x*256;
+			scroll_offset_y = cpu_mem.ppu_reg.ppuscrollY + base_nametable_addr_y*240;
 		}
-		else {
-			scroll_offset_x = cpu_mem.ppu_reg.ppuscrollX;
-			scroll_offset_y = cpu_mem.ppu_reg.ppuscrollY;
-		}
-		u8 base_nametable_addr_x = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_x);
-		u8 base_nametable_addr_y = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_y);
-		u16 base_nametable_addr = PPUMemory::NAMETABLE_BASE_ADDR + base_nametable_addr_x*0x400 + base_nametable_addr_y*0x800;
 
 		scroll_offset_x += dot;
 		scroll_offset_y += scanline;
@@ -107,7 +135,7 @@ struct PPU {
 		u8 tile_offset_x = scroll_offset_x % TILE_SIZE.x;
 		u8 tile_offset_y = scroll_offset_y % TILE_SIZE.y;
 
-		u8 bg_tile = ppu_mem.read(get_nametable_addr(base_nametable_addr, nametable_index_x, nametable_index_y));
+		u8 bg_tile = ppu_mem.read(get_nametable_addr(nametable_index_x, nametable_index_y));
 
 		tile_row_t bg = fetch_tile_row(bg_tile, get_pattern_table_addr(background, cpu_mem), tile_offset_y, ppu_mem);
 
@@ -120,12 +148,12 @@ struct PPU {
 		u8 attr_table_idx = attribute_table_idx_y * 8 + attribute_table_idx_x;
 
 		//u8 attribute = ppu_mem.read(PPUMemory::NAMETABLE_BASE_ADDR + 960 + attr_table_idx);
-		u8 attribute = ppu_mem.read(get_attribute_table_addr(base_nametable_addr, attribute_table_idx_x, attribute_table_idx_y));
+		u8 attribute = ppu_mem.read(get_attribute_table_addr(attribute_table_idx_x, attribute_table_idx_y));
 		u8 attr_table_lr = attribute_table_offs_x >= 16; // 0: left. 1: right
 		u8 attr_table_bt = attribute_table_offs_y >= 16; // 0: top. 1: bottom
 		u8 attr_table_bit_offset = attr_table_lr | attr_table_bt << 1;
 
-		u8 palette = (attribute << attr_table_bit_offset) & 0x03;
+		u8 palette = (attribute >> attr_table_bit_offset) & 0x03;
 
 		struct palette_t {
 			Colour c[4];
