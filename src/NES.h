@@ -58,7 +58,6 @@ struct NES {
 
 		mem.pinout.a = cpu.pinout.a;
 		mem.pinout.rw = cpu.pinout.rw;
-		mem.tick(ppu_mem);
 
 		if (cpu.pinout.rw == RW_READ)
 			cpu.pinout.d = mem.pinout.d;
@@ -66,6 +65,12 @@ struct NES {
 			mem.pinout.d = cpu.pinout.d;
 
 		mem.tick(ppu_mem);
+
+		if (cpu.pinout.rw == RW_READ)
+			cpu.pinout.d = mem.pinout.d;
+		else
+			mem.pinout.d = cpu.pinout.d;
+
 	}
 
 	enum mapper_t {

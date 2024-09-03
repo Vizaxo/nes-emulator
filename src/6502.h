@@ -1183,6 +1183,7 @@ struct cpu6502 {
 			interrupt = irq;
 		if (!pinout.nmiN)
 			interrupt = nmi;
+		pinout.rw = RW_READ;
 
 		fetching = false;
 
