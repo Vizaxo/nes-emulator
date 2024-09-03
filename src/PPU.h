@@ -69,7 +69,7 @@ struct PPU {
 
 		tile_row_t ret;
 		ret.bp0 = ppu_mem.read(pattern_table_addr + tile_offset + y_offset + 0);
-		ret.bp1 = ppu_mem.read(pattern_table_addr + tile_offset + y_offset + 1);
+		ret.bp1 = ppu_mem.read(pattern_table_addr + tile_offset + y_offset + 8);
 		return ret;
 	}
 
