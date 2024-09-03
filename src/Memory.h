@@ -219,7 +219,10 @@ struct PPUReg : Mem<PPUReg> {
 			return junk_read;
 		case 0x7:
 		{
-			u8 out = ppu_mem.read(ppuaddr);
+			static u8 buffered;
+			u8 out = buffered;
+			if (!debug)
+				buffered = ppu_mem.read(ppuaddr);
 			return out;
 		}
 		default:
