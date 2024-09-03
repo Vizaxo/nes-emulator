@@ -473,9 +473,9 @@ struct cpu6502 {
 		queue_uop(INC16, pc16);
 	}
 
-	static u8 debug_get_mem(u16 addr, CPUMemory* mem) {
+	static u8 debug_get_mem(u16 addr, CPUMemory* mem, PPUMemory& ppu_mem) {
 		ASSERT(mem, "mem was nullptr");
-		return (*mem)[addr];
+		return mem->read(addr, ppu_mem);
 	}
 
 	static str print_op_type(op::op_type_t op_type) {
@@ -542,8 +542,8 @@ struct cpu6502 {
 		}
 	}
 
-	static u8 get_ins_length(u16 addr, CPUMemory* mem) {
-		u8 opcode = debug_get_mem(addr, mem);
+	static u8 get_ins_length(u16 addr, CPUMemory* mem, PPUMemory& ppu_mem) {
+		u8 opcode = debug_get_mem(addr, mem, ppu_mem);
 
 		op instruction = opcode_table[opcode];
 		if (instruction.op_type == op::NOT_IMPLEMENTED)
@@ -585,13 +585,13 @@ struct cpu6502 {
 		ASSERT(false, "Should never reach here");
 	}
 
-	static str disassemble_instruction(u16 addr, CPUMemory* mem) {
+	static str disassemble_instruction(u16 addr, CPUMemory* mem, PPUMemory ppu_mem) {
 		str addr_mode;
 		u8 ins_length = 1;
 		u8 ins_bytes[3];
-		ins_bytes[0] = debug_get_mem(addr, mem);
-		ins_bytes[1] = debug_get_mem(addr+1, mem);
-		ins_bytes[2] = debug_get_mem(addr+2, mem);
+		ins_bytes[0] = debug_get_mem(addr, mem, ppu_mem);
+		ins_bytes[1] = debug_get_mem(addr+1, mem, ppu_mem);
+		ins_bytes[2] = debug_get_mem(addr+2, mem, ppu_mem);
 
 		u8 opcode = ins_bytes[0];
 
@@ -701,11 +701,6 @@ struct cpu6502 {
 		str ret_str = str::strf("%s %s", print_op_type(instruction.op_type).s, addr_mode.s);
 
 		return ret_str;
-	}
-
-	static void print_instruction(u16 addr, CPUMemory* mem) {
-		str ret = disassemble_instruction(addr, mem);
-		LOG(Log::INFO, cpuChan, "%s", ret.s);
 	}
 
 	void decode(u8 opcode) {

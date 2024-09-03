@@ -11,6 +11,7 @@ static inline Log::Channel nesChan = { "NES" };
 struct NES {
 	cpu6502 cpu;
 	CPUMemory mem;
+	PPUMemory ppu_mem;
 	bool test_rom = false;
 
 	inline void reset() {
@@ -21,7 +22,7 @@ struct NES {
 		for (int i = 0; i < 20; i++)
 			cpu.tick();
 
-		mem.debug_set_all_mem(0xea);
+		mem.debug_set_all_mem(0xea, ppu_mem);
 
 		load_nes_rom("../../../../games/roms/nes/Super Mario Bros. (Japan, USA).nes");
 	}
@@ -33,14 +34,14 @@ struct NES {
 
 		mem.pinout.a = cpu.pinout.a;
 		mem.pinout.rw = cpu.pinout.rw;
-		mem.tick();
+		mem.tick(ppu_mem);
 
 		if (cpu.pinout.rw == RW_READ)
 			cpu.pinout.d = mem.pinout.d;
 		else
 			mem.pinout.d = cpu.pinout.d;
 
-		mem.tick();
+		mem.tick(ppu_mem);
 	}
 
 	enum mapper_t {

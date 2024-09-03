@@ -84,19 +84,19 @@ struct App : Application {
 
 	void update_ins_lengths() {
 		for (int addr = 0; addr < Memory::MEM_MAX; ++addr) {
-			u8 len = cpu6502::get_ins_length(addr, &nes.mem);
+			u8 len = cpu6502::get_ins_length(addr, &nes.mem, nes.ppu_mem);
 			ins_metadata[addr].ins_len = len;
-			ins_metadata[addr].ins_bytes[0] = nes.mem[addr];
-			ins_metadata[addr].ins_bytes[1] = nes.mem[addr+1];
-			ins_metadata[addr].ins_bytes[2] = nes.mem[addr+2];
+			ins_metadata[addr].ins_bytes[0] = nes.mem.read(addr, nes.ppu_mem);
+			ins_metadata[addr].ins_bytes[1] = nes.mem.read(addr+1, nes.ppu_mem);
+			ins_metadata[addr].ins_bytes[2] = nes.mem.read(addr+2, nes.ppu_mem);
 		}
 	}
 
 	void add_ins_history_entry() {
-		ins_history_entry entry = {executing_addr, cpu6502::get_ins_length(executing_addr, &nes.mem)};
-		entry.ins_bytes[0] = nes.mem[executing_addr];
-		entry.ins_bytes[1] = nes.mem[executing_addr+1];
-		entry.ins_bytes[2] = nes.mem[executing_addr+2];
+		ins_history_entry entry = {executing_addr, cpu6502::get_ins_length(executing_addr, &nes.mem, nes.ppu_mem)};
+		entry.ins_bytes[0] = nes.mem.read(executing_addr, nes.ppu_mem);
+		entry.ins_bytes[1] = nes.mem.read(executing_addr+1, nes.ppu_mem);
+		entry.ins_bytes[2] = nes.mem.read(executing_addr+2, nes.ppu_mem);
 
 		bool add_new_entry = true;
 		bool add_jump_entry = false;
@@ -150,7 +150,7 @@ struct App : Application {
 		if (ins_metadata[executing_addr].breakpoint) {
 			single_step_debugging = true;
 		}
-		if (break_on_opcode && nes.mem[executing_addr] == break_opcode) {
+		if (break_on_opcode && nes.mem.read(executing_addr, nes.ppu_mem) == break_opcode) {
 			single_step_debugging = true;
 		}
 	}
@@ -265,7 +265,7 @@ struct App : Application {
 						ImGui::Text("%02x", ret.ins_bytes[j]);
 					}
 					ImGui::TableSetColumnIndex(4);
-					ImGui::TextUnformatted(cpu6502::disassemble_instruction(addr, &nes.mem).s);
+					ImGui::TextUnformatted(cpu6502::disassemble_instruction(addr, &nes.mem, nes.ppu_mem).s);
 					addr += ret.ins_len;
 					ImGui::PopID();
 				}
@@ -436,7 +436,9 @@ struct App : Application {
 				for (int j = 0; j < num_columns; j++) {
 					ImGui::PushID(addr+j);
 					ImGui::TableSetColumnIndex(j + 1);
-					ImGui::InputScalar("##byte", ImGuiDataType_U8, &nes.mem[addr + j], 0, 0, "%02x");
+					u8 byte = nes.mem.read(addr + j, nes.ppu_mem);
+					if (ImGui::InputScalar("##byte", ImGuiDataType_U8, &byte, 0, 0, "%02x"))
+						nes.mem.write(addr + j, byte, nes.ppu_mem);
 					ImGui::PopID();
 				}
 			}
@@ -534,7 +536,7 @@ struct App : Application {
 					ImGui::Text("%02x", entry.ins_bytes[j]);
 				}
 				ImGui::TableSetColumnIndex(2);
-				ImGui::Text("%s", cpu6502::disassemble_instruction(entry.addr, &nes.mem).s);
+				ImGui::Text("%s", cpu6502::disassemble_instruction(entry.addr, &nes.mem, nes.ppu_mem).s);
 
 				ImGui::TableSetColumnIndex(3);
 				if (entry.repeat_count > 1)
