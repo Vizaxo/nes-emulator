@@ -85,6 +85,7 @@ struct App : Application {
 	void update_ins_lengths() {
 		for (int addr = 0; addr < Memory::MEM_MAX; ++addr) {
 			u8 len = cpu6502::get_ins_length(addr, &nes.mem, nes.ppu_mem);
+			ASSERT(len > 0, "Instruction length must be positive (non-zero)");
 			ins_metadata[addr].ins_len = len;
 			ins_metadata[addr].ins_bytes[0] = nes.mem.debug_read(addr, nes.ppu_mem);
 			ins_metadata[addr].ins_bytes[1] = nes.mem.debug_read(addr+1, nes.ppu_mem);
@@ -225,6 +226,7 @@ struct App : Application {
 		int num_rows = 0;
 		while(addr <= Memory::MEM_MAX) {
 			disas_entry& ret = ins_metadata[addr];
+			ASSERT(ret.ins_len > 0, "Infinite loop if address length is zero");
 			addr += ret.ins_len;
 			if (addr == focus_address)
 				focus_addr_row = num_rows;
