@@ -63,13 +63,39 @@ struct PPUMemory : Mem<PPUMemory> {
 	RAM<0x0800> vram;
 	RAM<0x20> palette_ram;
 
-	RAM<0x40> oam;
+	// Not in main addr space
+	RAM<0x100> oam;
+	RAM<0x40> secondary_oam;
+
+	enum mirror_mode_t {
+		horizontal,
+		vertical,
+		single_screen,
+		quad_screen,
+	} mirror_mode;
+
+	u16 nametable_addr(u16 addr) {
+		switch (mirror_mode) {
+		case horizontal:
+			return (addr & ~0x400) | ((addr & 0x800) >> 1);
+		case vertical:
+			return addr & ~0x800;
+		case single_screen:
+			//fallthrough
+		case quad_screen:
+			ASSERT(false, "Unimplemented mirror mode %d", mirror_mode);
+			return addr % 0x400;
+		default:
+			ASSERT(false, "Invalid mirror mode %d", mirror_mode);
+			return addr % 0x400;
+		}
+	}
 
 	u8& operator[](u16 addr) {
 		if (addr < 0x2000)
 			return chr_rom[addr];
 		if (addr < 0x3000)
-			return vram[addr % 0x800]; // TODO: mirroring modes
+			return vram[nametable_addr(addr)];
 		if (addr < 0x3f00)
 			return vram[addr % 0x800];
 		if (addr < 0x4000)
