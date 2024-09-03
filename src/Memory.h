@@ -135,6 +135,11 @@ struct PPUReg : Mem<PPUReg> {
 		colour_on_ext = 0x40,
 		vblank_nmi = 0x80,
 	};
+	enum ppustatus_bit : u8 {
+		sprite_overflow = 1<<5,
+		sprite_zero_hit = 1<<6,
+		v_blank = 1<<7,
+	};
 	u8 ppuctrl;
 	u8 ppumask;
 	u8 ppustatus;
@@ -207,8 +212,14 @@ struct PPUReg : Mem<PPUReg> {
 		case 0x1:
 			return junk_read;
 		case 0x2:
-			if (!debug) w = 0;
-			return ppustatus;
+		{
+			u8 out = ppustatus;
+			if (!debug) {
+				w = 0;
+				ppustatus &= ~(1<<v_blank);
+			}
+			return out;
+		}
 		case 0x3:
 			return junk_read;
 		case 0x4:
