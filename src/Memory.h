@@ -151,7 +151,7 @@ struct PPUReg : Mem<PPUReg> {
 	}
 
 	void inc_ppuaddr() {
-		ppuaddr += (ppuctrl & (1<<2)) ? 1 : 32;
+		ppuaddr += (ppuctrl & vram_incr) ? 32 : 1;
 	}
 
 	void write(u16 addr, u8 data, PPUMemory& ppu_mem) {
@@ -214,19 +214,20 @@ struct PPUReg : Mem<PPUReg> {
 		case 0x3:
 			return junk_read;
 		case 0x4:
-			ppu_mem.oam.read(oamaddr);
-			break;
+			return ppu_mem.oam.read(oamaddr);
 		case 0x5:
 			return junk_read;
 		case 0x6:
 			return junk_read;
 		case 0x7:
-			ppu_mem.read(ppuaddr);
+		{
+			u8 out = ppu_mem.read(ppuaddr);
 			if (!debug) inc_ppuaddr();
-			break;
+			return out;
+		}
 		default:
 			ASSERT(false, "Writing address out of PPU reg address $%04x", addr);
-			break;
+			return junk_read;
 		}
 	}
 };
