@@ -132,11 +132,10 @@ struct PPU {
 			// pre-render scanline
 			return Colour::GREEN;
 		} else if (scanline <= 239) {
+			// Visible scanlines
 			if (scanline == 10 && dot==0)
 				cpu_mem.ppu_reg.ppustatus |= 1<<6; // fake a sprite 0 hit
 			return render_dot(dot, scanline, cpu_mem, ppu_mem);
-			// visible scanlines
-			return Colour::BLUE;
 		} else if (scanline == 240) {
 			// post-render scanline
 			return Colour::RED;
