@@ -191,7 +191,7 @@ struct PPU {
 			return 0x2b;
 		} else if (scanline <= 239) {
 			// Visible scanlines
-			if (scanline == 10 && dot==0)
+			if (scanline == 30 && dot==0)
 				cpu_mem.ppu_reg.ppustatus |= 1<<6; // fake a sprite 0 hit
 			return render_dot(dot, scanline, cpu_mem, ppu_mem);
 		} else if (scanline == 240) {
