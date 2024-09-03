@@ -587,7 +587,7 @@ struct App : Application {
 		draw_ins_history();
 		draw_nes_control();
 
-		nes.ppu.draw_framebuffer(renderer->rhi);
+		nes.ppu.draw_framebuffer(renderer->rhi, nes.mem, nes.ppu_mem);
 	}
 
 	void cleanup() override {}
