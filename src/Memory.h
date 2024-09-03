@@ -124,7 +124,8 @@ struct PPUMemory : Mem<PPUMemory> {
 
 struct PPUReg : Mem<PPUReg> {
 	enum ppuctrl_bit : u8 {
-		base_nametable_addr = 0x3,
+		base_nametable_addr_x = 0x1,
+		base_nametable_addr_y = 0x2,
 		vram_incr = 0x4,
 		fg_pattern_table = 0x8,
 		bg_pattern_table =  0x10,
