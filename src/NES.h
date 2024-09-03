@@ -66,13 +66,17 @@ struct NES {
 
 		switch (mapper) {
 		case mapper0:
+		{
 			ASSERT(prg_rom_size > 0 && prg_rom_size <= 2, "Mapper0 rom must be 16K or 32K");
 			for (int i = 0; i < prg_rom_size; ++i) {
 				size_t bytes_read = fread(mem.cartridge_rom.memory + (0x8000 - Memory::CARTRIDGE_ROM_START) + i*0x4000, 1, 0x4000, f);
 				ASSERT(bytes_read = 0x4000, "Could not read 16K from ROM");
 			}
-			// TODO: load CHR ROM
+			ASSERT(chr_rom_size == 1, "Currently only supports 8K of CHR-ROM");
+			size_t bytes_read = fread(ppu_mem.chr_rom.memory, 1, 0x2000, f);
+			ASSERT(bytes_read = 0x2000, "Could not read 8K CHR-ROM from ROM");
 			break;
+		}
 		default:
 			ASSERT(false, "Unimplemented mapper %d", mapper);
 		}
