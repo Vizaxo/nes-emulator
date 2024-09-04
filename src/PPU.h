@@ -135,7 +135,7 @@ struct PPU {
 			// transparent
 			return ppu_mem.read(0x3f00);
 		else
-			return ppu_mem.read(0x3f00 + palette*4 + palette_index); /*(tile_type == sprite ? 4 * 4 : 0));*/
+			return ppu_mem.read(0x3f00 + palette*4 + palette_index + (tile_type == sprite ? 4 * 4 : 0));
 	}
 
 	int debug_scroll_x = 0;
