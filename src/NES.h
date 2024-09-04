@@ -89,9 +89,9 @@ struct NES {
 	inline void load_nes_rom(str path) {
 #pragma warning (disable : 4996)
 		std::FILE* f = fopen(path.s, "rb");
-		ASSERT(f, "Could not open file %s", path.s);
+		RELEASE_ASSERT(f, "Could not open file %s", path.s);
 		u8 header[16];
-		ASSERT(fread(header, 1, 16, f) == 16, "Could not read 16 bytes of header");
+		RELEASE_ASSERT(fread(header, 1, 16, f) == 16, "Could not read 16 bytes of header");
 		u8 prg_rom_size = header[4]; // *16K
 		u8 chr_rom_size = header[5]; // *8k
 		mapper_t mapper = (mapper_t)((header[6]&flags_6::mapper_low)>>4 | header[7]&flags_7::mapper_high);
@@ -100,19 +100,19 @@ struct NES {
 		switch (mapper) {
 		case mapper0:
 		{
-			ASSERT(prg_rom_size > 0 && prg_rom_size <= 2, "Mapper0 rom must be 16K or 32K");
+			RELEASE_ASSERT(prg_rom_size > 0 && prg_rom_size <= 2, "Mapper0 rom must be 16K or 32K");
 			for (int i = 2 - prg_rom_size; i < 2; ++i) {
 				size_t bytes_read = fread(mem.cartridge_rom.memory + (0x8000 - Memory::CARTRIDGE_ROM_START) + i*0x4000, 1, 0x4000, f);
-				ASSERT(bytes_read == 0x4000, "Could not read 16K from ROM");
+				RELEASE_ASSERT(bytes_read == 0x4000, "Could not read 16K from ROM");
 			}
-			ASSERT(chr_rom_size == 1, "Currently only supports 8K of CHR-ROM");
+			RELEASE_ASSERT(chr_rom_size == 1, "Currently only supports 8K of CHR-ROM");
 			size_t bytes_read = fread(ppu_mem.chr_rom.memory, 1, 0x2000, f);
-			ASSERT(bytes_read == 0x2000, "Could not read 8K CHR-ROM from ROM");
+			RELEASE_ASSERT(bytes_read == 0x2000, "Could not read 8K CHR-ROM from ROM");
 			break;
 
 		}
 		default:
-			ASSERT(false, "Unimplemented mapper %d", mapper);
+			RELEASE_ASSERT(false, "Unimplemented mapper %d", mapper);
 			break;
 		}
 	}

@@ -14,10 +14,10 @@ struct palette_t {
 		palette_t ret;
 #pragma warning (disable : 4996)
 		FILE* f = std::fopen(path.s, "rb");
-		ASSERT(f, "Failed to open file %s", path);
+		RELEASE_ASSERT(f, "Failed to open file %s", path);
 
 		for (int i = 0; i < PALETTE_SIZE; ++i) {
-			ASSERT(fread((void*)&ret.colours[i], 1, 3, f) == 3, "Failed to read 3 bytes from palette file");
+			RELEASE_ASSERT(fread((void*)&ret.colours[i], 1, 3, f) == 3, "Failed to read 3 bytes from palette file");
 			ret.colours[i].a = 0xff;
 		}
 		return ret;
