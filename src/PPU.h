@@ -142,6 +142,9 @@ struct PPU {
 	int debug_scroll_y = 0;
 	bool use_debug_scroll = false;
 	u8 get_background_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
+		if (!(cpu_mem.ppu_reg.ppumask & PPUReg::show_bg))
+			return 0x00;
+
 		u16 scroll_offset_x;
 		u16 scroll_offset_y;
 		if (use_debug_scroll) {
@@ -247,6 +250,8 @@ struct PPU {
 	void prepare_secondary_oam(i16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		if (dot == 260) {
 			secondary_sprites = 0;
+			if (!(cpu_mem.ppu_reg.ppumask & PPUReg::show_sprites))
+				return;
 			for (int i = 0; i < 64; ++i) {
 				i32 y_coord = ppu_mem.oam.read(i*4 + 0);
 				i16 y_pix = scanline - y_coord; // Do this on the scanline before, so don't subtract 1

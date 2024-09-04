@@ -135,6 +135,16 @@ struct PPUReg : Mem<PPUReg> {
 		colour_on_ext = 0x40,
 		vblank_nmi = 0x80,
 	};
+	enum ppumask_bit : u8 {
+		greyscale = 0x1,
+		show_bg_left_col = 0x2,
+		show_sprites_left_col = 0x4,
+		show_bg = 0x8,
+		show_sprites = 0x10,
+		emph_red = 0x20,
+		emph_green = 0x40,
+		emph_blue = 0x80,
+	};
 	enum ppustatus_bit : u8 {
 		sprite_overflow = 1<<5,
 		sprite_zero_hit = 1<<6,
