@@ -24,7 +24,7 @@ struct PPU {
 	static constexpr v2i PATTERN_TABLE_SIZE_PIXELS = {16*8, 16*8};
 
 	Colour framebuffer[DOTS_PER_FRAME];
-	u32 framebuffer_idx = 0;
+	u32 framebuffer_idx = 1;
 
 	void tick(palette_t& palette, cpu6502& cpu, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		framebuffer[framebuffer_idx] = palette.colours[run_cycle(cpu, cpu_mem, ppu_mem)];
