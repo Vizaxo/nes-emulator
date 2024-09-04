@@ -1,6 +1,7 @@
 #pragma once
 
 #include <types/Types.h>
+#include <input/Keyboard.h>
 
 #define RW_READ 1
 #define RW_WRITE 0
@@ -281,6 +282,32 @@ struct PPUReg : Mem<PPUReg> {
 
 struct APUReg : Mem <APUReg> {
 	RAM<0x18> apu_io_reg;
+	u8 controller_state;
+
+	enum button {
+		right = 7,
+		left = 6,
+		down = 5,
+		up = 4,
+		start = 3,
+		select = 2,
+		b = 1,
+		a = 0,
+	};
+
+	void collect_controller_state() {
+		// TODO: button mappings
+		controller_state = 0;
+		//controller_state = 0x1<<start; // debug
+		controller_state |= Keyboard::isKeyDown(Keyboard::U) << right;
+		controller_state |= Keyboard::isKeyDown(Keyboard::O) << left;
+		controller_state |= Keyboard::isKeyDown(Keyboard::E) << down;
+		controller_state |= Keyboard::isKeyDown(Keyboard::Period) << up;
+		controller_state |= Keyboard::isKeyDown(Keyboard::Enter) << start;
+		controller_state |= Keyboard::isKeyDown(Keyboard::Esc) << select;
+		controller_state |= Keyboard::isKeyDown(Keyboard::T) << b;
+		controller_state |= Keyboard::isKeyDown(Keyboard::H) << a;
+	}
 
 	void write(u16 addr, u8 data, u8* src, PPUMemory& ppu_mem) {
 		switch (addr) {
@@ -289,13 +316,29 @@ struct APUReg : Mem <APUReg> {
 			// TODO: make this cycle accurate
 			memcpy(ppu_mem.oam.memory, src+data*0x100, 0x100);
 			return;
+		case 0x16: // controller 1
+			static bool latch_c1;
+			if (latch_c1 && !data) // falling edge
+				collect_controller_state();
+			latch_c1 = data;
+			return;
 		default:
 			return;
 		}
 	}
 
-	u8 read(u16 addr) {
-		return 0x0;
+	u8 read(u16 addr, bool debug = false) {
+		switch (addr) {
+		case 0x16: // controller 1
+		{
+			u8 out = controller_state & 0x01;
+			if (!debug)
+				controller_state = controller_state >> 1;
+			return out;
+		}
+		default:
+			return 0x0;
+		}
 	}
 };
 
@@ -327,7 +370,7 @@ struct CPUMemory : Mem<CPUMemory> {
 		if (addr < 0x4000)
 			return ppu_reg.read(addr % 0x08, ppu_mem, debug);
 		if (addr < 0x4018)
-			return apu_io_reg.read(addr % 0x18);
+			return apu_io_reg.read(addr - 0x4000, debug);
 		if (addr < 0x4020)
 			return apu_io_disabled[addr % 0x08];
 		else
