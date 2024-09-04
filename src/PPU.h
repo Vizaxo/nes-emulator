@@ -171,8 +171,8 @@ struct PPU {
 			u16 fine_y = (p.v>>12)&0x7;
 			u16 fine_x = p.x;
 
-			scroll_offset_x = coarse_x | (fine_x<<5) | (nametable_select_x<<8);
-			scroll_offset_y = coarse_y | (fine_y<<5) | (nametable_select_y<<8);
+			scroll_offset_x = fine_x | (coarse_x<<3) | (nametable_select_x<<8);
+			scroll_offset_y = fine_y | (coarse_y<<3) | (nametable_select_y<<8);
 		}
 
 		scroll_offset_x += dot;
@@ -339,8 +339,44 @@ struct PPU {
 
 			if (dot == 257) {
 				// v: ....A.. ...BCDEF <- t: ....A.. ...BCDEF
-				p.v = (p.v & ~(0x401f)) | (p.t & 0x401f); // A.. ...BCDEF
+				p.v = (p.v & ~(0x041f)) | (p.t & 0x041f); // A.. ...BCDEF
 			}
+
+			if (dot <= 256 || dot >= 328) {
+				// horizontal increment of v
+				// fine x increment?
+				p.x = (++p.x) % 8;
+				if (dot % 8 == 0) {
+					// corse x increment
+					if ((p.v & 0x1f) == 31) {
+						p.v = p.v & ~0x1f; // coarse x = 0
+						p.v = p.v ^ (0x0400); // flip x nametable
+					}
+					else {
+						++p.v; // incr coarse x
+					}
+				}
+			}
+
+			if (dot == 256) {
+				// fine y increment
+				if ((p.v & 0x7000) != 0x7000) {
+					p.v += 0x1000; // fine y < 7
+				} else {
+					p.v = p.v & ~0x7000;
+					int coarse_y = (p.v & 0x3e0) >> 5;
+					if (coarse_y == 29) {
+						coarse_y = 0;
+						p.v = p.v ^ 0x800; // flip y nametable
+					} else if (coarse_y == 31) {
+						coarse_y = 0; // overflow
+					} else {
+						++coarse_y;
+					}
+					p.v = (p.v & ~0x3e0) | (coarse_y<<5);
+				}
+			}
+
 			prepare_secondary_oam(scanline, cpu_mem, ppu_mem);
 			// Visible scanlines
 			if (dot < 250) {
