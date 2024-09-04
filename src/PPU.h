@@ -148,14 +148,31 @@ struct PPU {
 
 		u16 scroll_offset_x;
 		u16 scroll_offset_y;
+		PPUReg& p = cpu_mem.ppu_reg;
 		if (use_debug_scroll) {
 			scroll_offset_x = debug_scroll_x;
 			scroll_offset_y = debug_scroll_y;
 		} else {
-			u8 base_nametable_addr_x = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_x);
-			u8 base_nametable_addr_y = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_y);
-			scroll_offset_x = cpu_mem.ppu_reg.ppuscrollX + base_nametable_addr_x*256;
-			scroll_offset_y = cpu_mem.ppu_reg.ppuscrollY + base_nametable_addr_y*240;
+//			u8 base_nametable_addr_x = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_x);
+//			u8 base_nametable_addr_y = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_y);
+//			scroll_offset_x = cpu_mem.ppu_reg.ppuscrollX + base_nametable_addr_x*256;
+//			scroll_offset_y = cpu_mem.ppu_reg.ppuscrollY + base_nametable_addr_y*240;
+			// yyy NN YYYYY XXXXX
+			// ||| || ||||| +++++-- coarse X scroll
+			// ||| || +++++-------- coarse Y scroll
+			// ||| ++-------------- nametable select
+			// +++----------------- fine Y scroll
+
+			// yyy NNYY YYYX XXXX
+			u16 nametable_select_x = (p.v>>10) & 0x1;
+			u16 nametable_select_y = (p.v>>11) & 0x1;
+			u16 coarse_x = p.v&0x1f;
+			u16 coarse_y = (p.v>>5)&0x1f;
+			u16 fine_y = (p.v>>12)&0x7;
+			u16 fine_x = p.x;
+
+			scroll_offset_x = coarse_x | (fine_x<<5) | (nametable_select_x<<8);
+			scroll_offset_y = coarse_y | (fine_y<<5) | (nametable_select_y<<8);
 		}
 
 		scroll_offset_x += dot;
@@ -166,6 +183,7 @@ struct PPU {
 		u8 tile_offset_x = scroll_offset_x % TILE_SIZE.x;
 		u8 tile_offset_y = scroll_offset_y % TILE_SIZE.y;
 
+		//u8 bg_tile = ppu_mem.read(p.v);
 		u8 bg_tile = ppu_mem.read(get_nametable_addr(nametable_index_x, nametable_index_y));
 
 		tile_row_t bg = fetch_tile_row(bg_tile, get_pattern_table_addr(background, cpu_mem), tile_offset_y, ppu_mem);
@@ -297,19 +315,32 @@ struct PPU {
 			++frame;
 			scanline = -1;
 		}
+		PPUReg& p = cpu_mem.ppu_reg;
+
+		bool rendering_enabled = (p.ppumask & PPUReg::show_bg) || (p.ppumask & PPUReg::show_sprites);
 
 		if (scanline == -1) {
-			if (false)
-				for (int i = 0; i < DOTS_PER_FRAME; ++i)
-					framebuffer[i] = Colour::BLACK;
+			if (!rendering_enabled)
+				return 0x00;
+
 			prepare_secondary_oam(scanline, cpu_mem, ppu_mem);
 			if (dot == 1) {
 				cpu_mem.ppu_reg.ppustatus &= ~(1<<7 | 1<<6);
 				sprite_zero_hit = 0;
 			}
+			if (280 <= dot && dot <= 304) {
+				p.v = (p.v & ~0x7be0) | (p.t & 0x7be0);
+			}
 			// pre-render scanline
 			return 0x2b;
 		} else if (scanline <= 239) {
+			if (!rendering_enabled)
+				return 0x00;
+
+			if (dot == 257) {
+				// v: ....A.. ...BCDEF <- t: ....A.. ...BCDEF
+				p.v = (p.v & ~(0x401f)) | (p.t & 0x401f); // A.. ...BCDEF
+			}
 			prepare_secondary_oam(scanline, cpu_mem, ppu_mem);
 			// Visible scanlines
 			if (dot < 250) {

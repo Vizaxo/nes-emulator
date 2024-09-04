@@ -171,7 +171,10 @@ struct PPUReg : Mem<PPUReg> {
 	void write(u16 addr, u8 data, PPUMemory& ppu_mem) {
 		switch (addr) {
 		case 0x0:
-			ppuctrl = data;
+			// t: ...GH.. ........ <- d: ......GH
+			//    <used elsewhere> <- d: ABCDEF..
+			ppuctrl = data & 0xfc;
+			t = (t & ~0xc00) | (((u16)data&0x3)<<10);
 			break;
 		case 0x1:
 			ppumask = data;
@@ -188,19 +191,38 @@ struct PPUReg : Mem<PPUReg> {
 			break;
 		case 0x5:
 			if (!w) {
-				ppuscrollX = data;
+				// t: ....... ...ABCDE <- d: ABCDE...
+				// x:              FGH <- d: .....FGH
+				// w:                  <- 1
+				t = (t & ~0x1f) | (((u16)data&0x1f) << 3);
+				x = data&0x7;
+				//ppuscrollX = data;
 				++w;
 			} else {
-				ppuscrollY = data;
+				// t: FGH..AB CDE..... <- d: ABCDEFGH
+				// w:                  <- 0
+				t = (t&~0x7000) | (((u16)data&0x7) << 12); // FGH
+				t = (t&~0x3e0) | (((u16)data&0xf8)<<2); // ABCDE
+				//ppuscrollY = data;
 				--w;
 			}
 			break;
 		case 0x6:
 			if (!w) {
-				v = ((u16)data)<<8 | v&0xff; // write upper byte
+				// t: .CDEFGH ........ <- d: ..CDEFGH
+				//        <unused>     <- d: AB......
+				// t: Z...... ........ <- 0 (bit Z is cleared)
+				// w:                  <- 1
+				//t = ((u16)data&0x3f)<<8 | t&0xff; // write upper byte
+				t =	(t&~0x7f00) | ((u16)data&0x3f)<<8;
 				++w;
 			} else {
-				v = v&0xff00 | data;
+				// t: ....... ABCDEFGH <- d: ABCDEFGH
+				// v: <...all bits...> <- t: <...all bits...>
+				// w:                  <- 0
+				//v = v&0xff00 | data;
+				t = (t&~0xff) | data;
+				v = t;
 				--w;
 			}
 			break;
