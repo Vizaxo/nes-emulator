@@ -152,6 +152,9 @@ struct PPU {
 		if (use_debug_scroll) {
 			scroll_offset_x = debug_scroll_x;
 			scroll_offset_y = debug_scroll_y;
+
+			scroll_offset_x += dot;
+			scroll_offset_y += scanline;
 		} else {
 //			u8 base_nametable_addr_x = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_x);
 //			u8 base_nametable_addr_y = !!(cpu_mem.ppu_reg.ppuctrl & PPUReg::base_nametable_addr_y);
@@ -169,17 +172,25 @@ struct PPU {
 			u16 coarse_x = p.v&0x1f;
 			u16 coarse_y = (p.v>>5)&0x1f;
 			u16 fine_y = (p.v>>12)&0x7;
-			u16 fine_x = p.x;
 
-			scroll_offset_x = fine_x | (coarse_x<<3) | (nametable_select_x<<8);
+			// TODO: this is bad because it doesn't get reset on reset
+			// Only temporary until we wire in proper v addressing anyway
+			static u8 fine_x_shr = 5;
+			//u16 fine_x = (p.x + fine_x_shr) % 8;
+			// TODO: plumb fine x back in
+			++fine_x_shr;
+
+			scroll_offset_x = ((fine_x_shr) & 0x7) | (coarse_x<<3) | (nametable_select_x<<8);
 			scroll_offset_y = fine_y | (coarse_y<<3) | (nametable_select_y<<8);
 		}
 
-		scroll_offset_x += dot;
-		scroll_offset_y += scanline;
-
 		u8 nametable_index_x = scroll_offset_x / TILE_SIZE.x;
 		u8 nametable_index_y = scroll_offset_y / TILE_SIZE.y;
+		if (!use_debug_scroll) {
+			ASSERT(nametable_index_x == ((p.v & 0x1f) | (((p.v >> 10) & 0x1) << 5)), "Nametable X calculation wrong");
+			ASSERT(nametable_index_y == (((p.v >> 5) & 0x1f) | (((p.v >> 11) & 0x1) << 5)), "Nametable X calculation wrong");
+		}
+		//ASSERT(nametable_index_y == (p.v>>11) & 0x1, "Nametable X calculation wrong");
 		u8 tile_offset_x = scroll_offset_x % TILE_SIZE.x;
 		u8 tile_offset_y = scroll_offset_y % TILE_SIZE.y;
 
@@ -345,7 +356,7 @@ struct PPU {
 			if (dot <= 256 || dot >= 328) {
 				// horizontal increment of v
 				// fine x increment?
-				p.x = (++p.x) % 8;
+				// p.x = (++p.x) % 8;
 				if (dot % 8 == 0) {
 					// corse x increment
 					if ((p.v & 0x1f) == 31) {
@@ -379,7 +390,7 @@ struct PPU {
 
 			prepare_secondary_oam(scanline, cpu_mem, ppu_mem);
 			// Visible scanlines
-			if (dot < 250) {
+			if (dot < 256) {
 				u8 ret = render_dot(dot, scanline, cpu_mem, ppu_mem);
 				if (sprite_zero_hit)
 					cpu_mem.ppu_reg.ppustatus |= 1 << 6; // fake a sprite 0 hit
