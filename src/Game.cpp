@@ -83,7 +83,7 @@ struct App : Application {
 	}
 
 	void update_ins_lengths() {
-		for (int addr = 0; addr < Memory::MEM_MAX; ++addr) {
+		for (int addr = 0; addr <= Memory::MEM_MAX; ++addr) {
 			u8 len = cpu6502::get_ins_length(addr, &nes.mem, nes.ppu_mem);
 			ASSERT(len > 0, "Instruction length must be positive (non-zero)");
 			ins_metadata[addr].ins_len = len;
