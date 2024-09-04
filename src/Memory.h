@@ -194,7 +194,7 @@ struct PPUReg : Mem<PPUReg> {
 				// t: ....... ...ABCDE <- d: ABCDE...
 				// x:              FGH <- d: .....FGH
 				// w:                  <- 1
-				t = (t & ~0x1f) | (((u16)data&0x1f) << 3);
+				t = (t & ~0x1f) | (((u16)data&0xf8) >> 3);
 				x = data&0x7;
 				//ppuscrollX = data;
 				++w;
@@ -227,7 +227,7 @@ struct PPUReg : Mem<PPUReg> {
 			}
 			break;
 		case 0x7:
-			ppu_mem.write(v&0x3ffff, data); // PPU memory space is 14 bits
+			ppu_mem.write(v&0x3fff, data); // PPU memory space is 14 bits
 			inc_ppuaddr();
 			break;
 		default:
