@@ -205,6 +205,16 @@ struct PPU {
 
 		tile_row_t bg = fetch_tile_row(bg_tile, get_pattern_table_addr(background, cpu_mem), tile_offset_y, ppu_mem);
 
+		u8 palette_index_l = !!(bg.bp0 & (1 << (7 - tile_offset_x)));
+		u8 palette_index_h = !!(bg.bp1 & (1 << (7 - tile_offset_x)));
+
+		u8 palette_index = palette_index_h << 1 | palette_index_l;
+		ASSERT(palette_index < 0x4, "Invalid palette index $%x", palette_index);
+
+		if (palette_index == 0)
+			// transparent
+			return ppu_mem.read(0x3f00);
+
 		u8 attribute_table_idx_x = scroll_offset_x / 32;
 		u8 attribute_table_idx_y = scroll_offset_y / 32;
 		u8 attribute_table_offs_x = scroll_offset_x % 32;
@@ -219,17 +229,7 @@ struct PPU {
 
 		u8 palette = (attribute >> (attr_table_bit_offset*2)) & 0x03;
 
-		u8 palette_index_l = !!(bg.bp0 & (1 << (7 - tile_offset_x)));
-		u8 palette_index_h = !!(bg.bp1 & (1 << (7 - tile_offset_x)));
-
-		u8 palette_index = palette_index_h << 1 | palette_index_l;
-		ASSERT(palette_index < 0x4, "Invalid palette index $%x", palette_index);
-
-		if (palette_index == 0)
-			// transparent
-			return ppu_mem.read(0x3f00);
-		else
-			return ppu_mem.read(0x3f00 + palette*4 + palette_index /* + sprite offset*/);
+		return ppu_mem.read(0x3f00 + palette * 4 + palette_index);
 	}
 
 	static constexpr u8 SECONDARY_OAM_SPRITE_COUNT = 8;
