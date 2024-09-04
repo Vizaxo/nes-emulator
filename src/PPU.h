@@ -414,11 +414,12 @@ struct PPU {
 	void draw_framebuffer(RefPtr<RHI> rhi, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		if (ImGui::Begin("PPU display")) {
 			ImGui::Text("Frame %d, scanline %d, dot %d", frame, scanline, dot);
-			ImGui::InputScalar("ppuctrl", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppuctrl, 0, 0, "%04x");
-			ImGui::InputScalar("ppustatus", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppustatus, 0, 0, "%04x");
+			ImGui::InputScalar("ppuctrl", ImGuiDataType_U8, &cpu_mem.ppu_reg.ppuctrl, 0, 0, "%02x");
+			ImGui::InputScalar("ppumask", ImGuiDataType_U8, &cpu_mem.ppu_reg.ppumask, 0, 0, "%02x");
+			ImGui::InputScalar("ppustatus", ImGuiDataType_U8, &cpu_mem.ppu_reg.ppustatus, 0, 0, "%02x");
 			ImGui::InputScalar("ppuaddr", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppuaddr, 0, 0, "%04x");
-			ImGui::InputScalar("ppuscrollX", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppuscrollX, 0, 0, "%04x");
-			ImGui::InputScalar("ppuscrollY", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppuscrollY, 0, 0, "%04x");
+			ImGui::InputScalar("ppuscrollX", ImGuiDataType_U8, &cpu_mem.ppu_reg.ppuscrollX, 0, 0, "%02x");
+			ImGui::InputScalar("ppuscrollY", ImGuiDataType_U8, &cpu_mem.ppu_reg.ppuscrollY, 0, 0, "%02x");
 
 			if (ImGui::SliderInt("Scroll x", &debug_scroll_x, 0, 511, "%03x"))
 				use_debug_scroll = true;
