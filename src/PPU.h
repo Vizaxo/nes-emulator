@@ -52,7 +52,7 @@ struct PPU {
 	u16 get_pattern_table_addr(tile_type_t tile_type, CPUMemory& cpu_mem) {
 		switch (tile_type) {
 		case sprite:
-			return get_pattern_table_addr((cpu_mem.ppu_reg.ppuctrl & PPUReg::fg_pattern_table) >> 3);
+			return get_pattern_table_addr((cpu_mem.ppu_reg.ppuctrl & PPUReg::sprite_pattern_table) >> 3);
 		case background:
 			return get_pattern_table_addr((cpu_mem.ppu_reg.ppuctrl & PPUReg::bg_pattern_table) >> 4);
 		default:
@@ -116,7 +116,7 @@ struct PPU {
 	}
 
 	u8 get_palette_index(u8 tile, tile_type_t tile_type, u8 tile_offset_x, u8 tile_offset_y, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
-		if (tile_offset_x >=8 || tile_offset_y >=8)
+		if (tile_offset_x >=8)// || tile_offset_y >=8)
 			return 0; // tile off screen. transparent
 
 		tile_row_t bg = fetch_tile_row(tile, get_pattern_table_addr(tile_type, cpu_mem), tile_offset_y, ppu_mem);
@@ -135,7 +135,7 @@ struct PPU {
 			// transparent
 			return ppu_mem.read(0x3f00);
 		else
-			return ppu_mem.read(0x3f00 + palette*4 + palette_index + tile_type==sprite ? 4*4 : 0);
+			return ppu_mem.read(0x3f00 + palette*4 + palette_index); /*(tile_type == sprite ? 4 * 4 : 0));*/
 	}
 
 	int debug_scroll_x = 0;
@@ -194,6 +194,7 @@ struct PPU {
 	}
 
 	static constexpr u8 SECONDARY_OAM_SPRITE_COUNT = 8;
+	u8 secondary_sprites = 0;
 	u8 render_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		struct sprite_t {
 			u8 y_coord;
@@ -203,37 +204,67 @@ struct PPU {
 		};
 		sprite_t* chosen_sprite = nullptr;
 		u8 palette_index;
-		for (int i = 0; i < SECONDARY_OAM_SPRITE_COUNT; ++i) {
+		ASSERT(secondary_sprites <= SECONDARY_OAM_SPRITE_COUNT, "Exceeding bounds of secondary oam");
+		for (int i = 0; i < secondary_sprites; ++i) {
 			sprite_t& s = *((sprite_t*)ppu_mem.secondary_oam.memory + i);
-			if (s.x_coord > dot && s.x_coord < dot + 8) {
-				u8 x_pix = dot - s.x_coord - 1;
-				if (s.attributes&1<<6)
-					x_pix = 7 - x_pix;
-				u8 y_pix = scanline - s.y_coord - 1;
-				if (s.attributes&1<<7)
-					y_pix = 7 - y_pix;
-				palette_index = get_palette_index(s.tile_index, sprite, x_pix, y_pix, cpu_mem, ppu_mem);
-				if (palette_index != 0)
-					chosen_sprite = &s;
+			i16 x_pix = (i16)dot - (i16)s.x_coord - 1;
+			ASSERT(s.y_coord < scanline && scanline <= s.y_coord+8, "");
+			if (s.attributes & (1 << 6))
+				x_pix = 7 - x_pix;
+			i16 y_pix = (i16)scanline - (i16)s.y_coord - 1;
+			ASSERT(y_pix >= 0 && y_pix < 8, "Sprite should not be being rendered");
+			if (s.attributes & (1 << 7))
+				y_pix = 7 - y_pix;
+			palette_index = get_palette_index(s.tile_index, sprite, x_pix, y_pix, cpu_mem, ppu_mem);
+			if (palette_index != 0) {
+				chosen_sprite = &s;
+				break;
 			}
 		}
-		if (chosen_sprite && chosen_sprite->attributes & 1<<5)
-			return get_colour(chosen_sprite->attributes & 0x3, palette_index, sprite, ppu_mem);
+
+		u8 bg_color = get_background_dot(dot, scanline, cpu_mem, ppu_mem);
+		if (!chosen_sprite) {
+			return bg_color;
+		}
+
+		u8 sprite_color = get_colour(chosen_sprite->attributes & 0x3, palette_index, sprite, ppu_mem);
+		if (sprite_color == 0)
+			return bg_color;
+		if (!(chosen_sprite->attributes & (1<<5))) // priority
+			return sprite_color;
+
+		if (bg_color != 0)
+			return bg_color;
 		else
-			return get_background_dot(dot, scanline, cpu_mem, ppu_mem);
+			return sprite_color;
 	}
 
 	void prepare_secondary_oam(i16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
-		u8 secondary_oam_index = 0;
 		if (dot == 260) {
+			secondary_sprites = 0;
 			for (int i = 0; i < 64; ++i) {
-				u8 y_coord = ppu_mem.oam.read(i*4 + 0);
-				if (y_coord > scanline && y_coord <= scanline + 8) {
+				i32 y_coord = ppu_mem.oam.read(i*4 + 0);
+				i16 y_pix = scanline - y_coord; // Do this on the scanline before, so don't subtract 1
+				if (y_coord <= scanline && scanline < y_coord + 8) {
 					// hit
-					memcpy(ppu_mem.secondary_oam.memory + 4*secondary_oam_index, ppu_mem.oam.memory + i*4, 4);
+					memcpy(ppu_mem.secondary_oam.memory + 4*secondary_sprites, ppu_mem.oam.memory + i*4, 4);
+
+					struct sprite_t {
+						u8 y_coord;
+						u8 tile_index;
+						u8 attributes;
+						u8 x_coord;
+					};
+					sprite_t& s = *((sprite_t*)ppu_mem.secondary_oam.memory + secondary_sprites);
+					i16 x_pix = (i16)dot - (i16)s.x_coord - 1;
+					if (s.attributes & (1 << 6))
+						x_pix = 7 - x_pix;
+					i16 y_pix_2 = (i16)scanline - (i16)s.y_coord - 1;
+					//ASSERT(y_pix == y_pix_2 + 1, "Sprite should not be being rendered");
+					//ASSERT(y_pix_2 >= 0 && y_pix_2 < 8, "Sprite should not be being rendered");
+					++secondary_sprites;
 				}
-				++secondary_oam_index;
-				if (secondary_oam_index >= SECONDARY_OAM_SPRITE_COUNT)
+				if (secondary_sprites >= SECONDARY_OAM_SPRITE_COUNT)
 					break;
 			}
 		}
@@ -252,6 +283,9 @@ struct PPU {
 		}
 
 		if (scanline == -1) {
+			if (false)
+				for (int i = 0; i < DOTS_PER_FRAME; ++i)
+					framebuffer[i] = Colour::BLACK;
 			prepare_secondary_oam(scanline, cpu_mem, ppu_mem);
 			if (dot == 1) {
 				cpu_mem.ppu_reg.ppustatus &= ~(1<<7 | 1<<6);
@@ -263,7 +297,10 @@ struct PPU {
 			// Visible scanlines
 			if (scanline == 30 && dot==0)
 				cpu_mem.ppu_reg.ppustatus |= 1<<6; // fake a sprite 0 hit
-			return render_dot(dot, scanline, cpu_mem, ppu_mem);
+			if (dot < 250)
+				return render_dot(dot, scanline, cpu_mem, ppu_mem);
+			else
+				return 0x0;
 		} else if (scanline == 240) {
 			// post-render scanline
 			return 0x16;

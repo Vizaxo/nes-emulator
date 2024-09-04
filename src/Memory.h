@@ -129,7 +129,7 @@ struct PPUReg : Mem<PPUReg> {
 		base_nametable_addr_x = 0x1,
 		base_nametable_addr_y = 0x2,
 		vram_incr = 0x4,
-		fg_pattern_table = 0x8,
+		sprite_pattern_table = 0x8,
 		bg_pattern_table =  0x10,
 		sprite_size = 0x20,
 		colour_on_ext = 0x40,
