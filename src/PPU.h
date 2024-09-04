@@ -195,6 +195,8 @@ struct PPU {
 
 	static constexpr u8 SECONDARY_OAM_SPRITE_COUNT = 8;
 	u8 secondary_sprites = 0;
+	bool sprite_zero_in_secondary = false;
+	bool sprite_zero_hit = true;
 	u8 render_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		struct sprite_t {
 			u8 y_coord;
@@ -228,6 +230,9 @@ struct PPU {
 		}
 
 		u8 sprite_color = get_colour(chosen_sprite->attributes & 0x3, palette_index, sprite, ppu_mem);
+		if (sprite_zero_in_secondary && bg_color != 0x0 && sprite_color != 0x0)
+			sprite_zero_hit = true;
+
 		if (sprite_color == 0)
 			return bg_color;
 		if (!(chosen_sprite->attributes & (1<<5))) // priority
@@ -263,6 +268,8 @@ struct PPU {
 					//ASSERT(y_pix == y_pix_2 + 1, "Sprite should not be being rendered");
 					//ASSERT(y_pix_2 >= 0 && y_pix_2 < 8, "Sprite should not be being rendered");
 					++secondary_sprites;
+					if (i == 0)
+						sprite_zero_in_secondary = true;
 				}
 				if (secondary_sprites >= SECONDARY_OAM_SPRITE_COUNT)
 					break;
@@ -289,18 +296,21 @@ struct PPU {
 			prepare_secondary_oam(scanline, cpu_mem, ppu_mem);
 			if (dot == 1) {
 				cpu_mem.ppu_reg.ppustatus &= ~(1<<7 | 1<<6);
+				sprite_zero_hit = 0;
 			}
 			// pre-render scanline
 			return 0x2b;
 		} else if (scanline <= 239) {
 			prepare_secondary_oam(scanline, cpu_mem, ppu_mem);
 			// Visible scanlines
-			if (scanline == 30 && dot==0)
-				cpu_mem.ppu_reg.ppustatus |= 1<<6; // fake a sprite 0 hit
-			if (dot < 250)
-				return render_dot(dot, scanline, cpu_mem, ppu_mem);
-			else
-				return 0x0;
+			if (dot < 250) {
+				u8 ret = render_dot(dot, scanline, cpu_mem, ppu_mem);
+				if (sprite_zero_hit)
+					cpu_mem.ppu_reg.ppustatus |= 1 << 6; // fake a sprite 0 hit
+				return ret;
+			} else {
+				return 0x0f;
+			}
 		} else if (scanline == 240) {
 			// post-render scanline
 			return 0x16;
