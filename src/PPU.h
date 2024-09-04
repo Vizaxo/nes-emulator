@@ -272,7 +272,7 @@ struct PPU {
 		}
 
 		u8 sprite_color = get_colour(chosen_sprite->attributes & 0x3, palette_index, sprite, ppu_mem);
-		if (sprite_zero_in_secondary && bg_color != 0x0 && sprite_color != 0x0)
+		if (sprite_zero_in_secondary && chosen_sprite == (sprite_t*)ppu_mem.secondary_oam.memory && bg_color != 0x0 && sprite_color != 0x0)
 			sprite_zero_hit = true;
 
 		if (sprite_color == 0)
