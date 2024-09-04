@@ -42,7 +42,13 @@ struct NES {
 		load_nes_rom("../../../../games/roms/nes/Super Mario Bros. (Japan, USA).nes");
 
 		cpu.init();
+
+		// TODO: this is clearly broken somewhere
+#if _DEBUG
 		ppu.fine_x_shr = 5;
+#else
+		ppu.fine_x_shr = 7;
+#endif
 
 		cpu.pinout.resN = false;
 		LOG(Log::INFO, nesChan, "Init");
