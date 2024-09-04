@@ -4,6 +4,7 @@
 
 #define RW_READ 1
 #define RW_WRITE 0
+#define RW_NONE 2
 
 template <int n>
 struct RAM {
@@ -45,13 +46,13 @@ struct Mem {
 	struct Pinout {
 		u16 a;
 		u8 d;
-		u8 rw : 1; // read/write. If high CPU is reading
+		u8 rw : 2; // read/write. If high CPU is reading
 	} pinout;
 
 	template <typename T> void tick(T& ppu_mem) {
 		if (pinout.rw == RW_READ)
 			pinout.d = ((M*)this)->read(pinout.a, ppu_mem);
-		else
+		else if (pinout.rw == RW_WRITE)
 			((M*)this)->write(pinout.a, pinout.d, ppu_mem);
 	}
 };
@@ -240,10 +241,13 @@ struct PPUReg : Mem<PPUReg> {
 			return junk_read;
 		case 0x7:
 		{
+			if (debug)
+				return ppu_mem.read(ppuaddr);
+
 			static u8 buffered;
 			u8 out = buffered;
-			if (!debug)
-				buffered = ppu_mem.read(ppuaddr);
+			buffered = ppu_mem.read(ppuaddr);
+			inc_ppuaddr();
 			return out;
 		}
 		default:

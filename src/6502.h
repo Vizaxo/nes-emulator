@@ -63,7 +63,7 @@ struct cpu6502 {
 		u8 sync : 1; // Goes high during opcode fetch
 		u8 resN : 1; // RESET
 		u8 so : 1; // Set overflow input
-		u8 rw : 1; // Read/write. High to read
+		u8 rw : 2; // Read/write. High to read
 	} pinout;
 
 	enum UOP_ID : u8 {
@@ -1183,7 +1183,7 @@ struct cpu6502 {
 			interrupt = irq;
 		if (!pinout.nmiN)
 			interrupt = nmi;
-		pinout.rw = RW_READ;
+		pinout.rw = RW_NONE;
 
 		fetching = false;
 

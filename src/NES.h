@@ -59,21 +59,25 @@ struct NES {
 		ppu.tick(palette, cpu, mem, ppu_mem);
 		ppu.tick(palette, cpu, mem, ppu_mem);
 
+
 		mem.pinout.a = cpu.pinout.a;
 		mem.pinout.rw = cpu.pinout.rw;
 
 		if (cpu.pinout.rw == RW_READ)
 			cpu.pinout.d = mem.pinout.d;
-		else
+		else if (cpu.pinout.rw == RW_WRITE)
 			mem.pinout.d = cpu.pinout.d;
+		else
+			mem.pinout.a = 0x0000;
 
 		mem.tick(ppu_mem);
 
 		if (cpu.pinout.rw == RW_READ)
 			cpu.pinout.d = mem.pinout.d;
-		else
+		else if (cpu.pinout.rw == RW_WRITE)
 			mem.pinout.d = cpu.pinout.d;
-
+		else
+			mem.pinout.a = 0x0000;
 	}
 
 	enum mapper_t {
