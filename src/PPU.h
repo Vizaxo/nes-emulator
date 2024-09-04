@@ -115,8 +115,8 @@ struct PPU {
 		return ret;
 	}
 
-	u8 get_palette_index(u8 tile, tile_type_t tile_type, u8 tile_offset_x, u8 tile_offset_y, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
-		if (tile_offset_x >=8)// || tile_offset_y >=8)
+	u8 get_palette_index(u8 tile, tile_type_t tile_type, i16 tile_offset_x, i16 tile_offset_y, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
+		if (tile_offset_x < 0 || tile_offset_x >=8)
 			return 0; // tile off screen. transparent
 
 		tile_row_t bg = fetch_tile_row(tile, get_pattern_table_addr(tile_type, cpu_mem), tile_offset_y, ppu_mem);
