@@ -24,7 +24,7 @@ struct App : Application {
 	u16 data_break_addr = 0x0;
 	u8 data_break_val;
 	u8 break_opcode;
-	int ticks_per_frame = 1000;
+	int ticks_per_frame = 7320; // ~realtime at 240hz
 	bool break_on_opcode = false;
 	enum data_break_mode_t {
 		none = 0x0,
@@ -166,10 +166,24 @@ struct App : Application {
 		}
 	}
 
-	void draw_debugger() {
+	void draw_debugger(float dt) {
+		static int frame_count = 0;
+		++frame_count;
+		static constexpr int NUM_FRAMES_TO_AVG = 50;
+		static float frametimes[NUM_FRAMES_TO_AVG];
+		int num_frames_to_avg = min(NUM_FRAMES_TO_AVG, frame_count);
+		static int ft_idx = 0;
+		frametimes[ft_idx] = dt;
+		double dt_sum = 0;
+		for (int i = (ft_idx+1)%num_frames_to_avg; i != ft_idx; i = (i+1)%num_frames_to_avg)
+			dt_sum += frametimes[i];
+		ft_idx = (ft_idx + 1) % num_frames_to_avg;
+		double dt_avg = dt_sum/num_frames_to_avg;
+
 		ImGui::Begin("Debugger");
 
 		ImGui::InputInt("Cycles per frame", &ticks_per_frame);
+		ImGui::Text("Frequency: %.2fMHz", (double)ticks_per_frame / dt_avg / 1000000. );
 
 		if (ImGui::Button(single_step_debugging ? "Continue" : "Pause"))
 			single_step_debugging = !single_step_debugging;
@@ -579,8 +593,8 @@ struct App : Application {
 		ImGui::End();
 	}
 
-	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB) override {
-		draw_debugger();
+	void render(RefPtr<Renderer> renderer, CB::ViewCB viewCB, float dt) override {
+		draw_debugger(dt);
 		draw_registers();
 		draw_memory_view();
 		draw_pinout_view();
