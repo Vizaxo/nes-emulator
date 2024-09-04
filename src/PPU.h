@@ -142,7 +142,8 @@ struct PPU {
 	int debug_scroll_y = 0;
 	bool use_debug_scroll = false;
 	u8 get_background_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
-		if (!(cpu_mem.ppu_reg.ppumask & PPUReg::show_bg))
+		if (!(cpu_mem.ppu_reg.ppumask & PPUReg::show_bg)
+			|| (!(cpu_mem.ppu_reg.ppumask & PPUReg::show_bg_left_col)) && dot <= 8)
 			return 0x00;
 
 		u16 scroll_offset_x;
@@ -211,6 +212,9 @@ struct PPU {
 		u8 palette_index;
 		ASSERT(secondary_sprites <= SECONDARY_OAM_SPRITE_COUNT, "Exceeding bounds of secondary oam");
 		for (int i = 0; i < secondary_sprites; ++i) {
+			if (!(cpu_mem.ppu_reg.ppumask & PPUReg::show_sprites_left_col) && dot <= 8)
+				break;
+
 			sprite_t& s = *((sprite_t*)ppu_mem.secondary_oam.memory + i);
 			i16 x_pix = (i16)dot - (i16)s.x_coord - 1;
 			ASSERT(s.y_coord < scanline && scanline <= s.y_coord+8, "");
