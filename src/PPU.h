@@ -141,6 +141,7 @@ struct PPU {
 	int debug_scroll_x = 0;
 	int debug_scroll_y = 0;
 	bool use_debug_scroll = false;
+	u8 fine_x_shr;
 	u8 get_background_dot(u16 dot, u16 scanline, CPUMemory& cpu_mem, PPUMemory& ppu_mem) {
 		if (!(cpu_mem.ppu_reg.ppumask & PPUReg::show_bg)
 			|| (!(cpu_mem.ppu_reg.ppumask & PPUReg::show_bg_left_col)) && dot <= 8)
@@ -149,6 +150,7 @@ struct PPU {
 		u16 scroll_offset_x;
 		u16 scroll_offset_y;
 		PPUReg& p = cpu_mem.ppu_reg;
+		++fine_x_shr;
 		if (use_debug_scroll) {
 			scroll_offset_x = debug_scroll_x;
 			scroll_offset_y = debug_scroll_y;
@@ -175,14 +177,17 @@ struct PPU {
 
 			// TODO: this is bad because it doesn't get reset on reset
 			// Only temporary until we wire in proper v addressing anyway
-			static u8 fine_x_shr = 5;
 			//u16 fine_x = (p.x + fine_x_shr) % 8;
 			// TODO: plumb fine x back in
-			++fine_x_shr;
 
 			scroll_offset_x = ((fine_x_shr) & 0x7) | (coarse_x<<3) | (nametable_select_x<<8);
 			scroll_offset_y = fine_y | (coarse_y<<3) | (nametable_select_y<<8);
+			if (scroll_offset_x < 24)
+				if (scroll_offset_y >= 1)
+					scroll_offset_y -= 1;
 			scroll_offset_x -= 24; // simulate fetching 3 tiles previous
+			scroll_offset_x = scroll_offset_x%512;
+			scroll_offset_x += p.x;
 		}
 
 		u8 nametable_index_x = scroll_offset_x / TILE_SIZE.x;
