@@ -157,15 +157,15 @@ struct PPUReg : Mem<PPUReg> {
 	u8 oamaddr;
 	u8 ppuscrollX;
 	u8 ppuscrollY;
-	u16 ppuaddr;
+	//u16 ppuaddr;
 
-	u8 v = 0;
-	u8 t = 0;
-	u8 x = 0;
-	u8 w = 0;
+	u16 v : 15;
+	u16 t : 15;
+	u8 x : 3;
+	u8 w : 1;
 
 	void inc_ppuaddr() {
-		ppuaddr += (ppuctrl & vram_incr) ? 32 : 1;
+		v += (ppuctrl & vram_incr) ? 32 : 1;
 	}
 
 	void write(u16 addr, u8 data, PPUMemory& ppu_mem) {
@@ -197,15 +197,15 @@ struct PPUReg : Mem<PPUReg> {
 			break;
 		case 0x6:
 			if (!w) {
-				ppuaddr = ((u16)data)<<8 | ppuaddr&0xff; // write upper byte
+				v = ((u16)data)<<8 | v&0xff; // write upper byte
 				++w;
 			} else {
-				ppuaddr = ppuaddr&0xff00 | data;
+				v = v&0xff00 | data;
 				--w;
 			}
 			break;
 		case 0x7:
-			ppu_mem.write(ppuaddr, data);
+			ppu_mem.write(v&0x3ffff, data); // PPU memory space is 14 bits
 			inc_ppuaddr();
 			break;
 		default:
@@ -242,11 +242,11 @@ struct PPUReg : Mem<PPUReg> {
 		case 0x7:
 		{
 			if (debug)
-				return ppu_mem.read(ppuaddr);
+				return ppu_mem.read(v);
 
 			static u8 buffered;
 			u8 out = buffered;
-			buffered = ppu_mem.read(ppuaddr);
+			buffered = ppu_mem.read(v);
 			inc_ppuaddr();
 			return out;
 		}

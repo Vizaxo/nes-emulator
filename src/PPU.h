@@ -417,7 +417,12 @@ struct PPU {
 			ImGui::InputScalar("ppuctrl", ImGuiDataType_U8, &cpu_mem.ppu_reg.ppuctrl, 0, 0, "%02x");
 			ImGui::InputScalar("ppumask", ImGuiDataType_U8, &cpu_mem.ppu_reg.ppumask, 0, 0, "%02x");
 			ImGui::InputScalar("ppustatus", ImGuiDataType_U8, &cpu_mem.ppu_reg.ppustatus, 0, 0, "%02x");
-			ImGui::InputScalar("ppuaddr", ImGuiDataType_U16, &cpu_mem.ppu_reg.ppuaddr, 0, 0, "%04x");
+			u16 v = cpu_mem.ppu_reg.v;
+			ImGui::InputScalar("ppuaddr (v)", ImGuiDataType_U16, &v, 0, 0, "%04x");
+			cpu_mem.ppu_reg.v = v;
+			u16 t = cpu_mem.ppu_reg.t;
+			ImGui::InputScalar("t", ImGuiDataType_U16, &t, 0, 0, "%04x");
+			cpu_mem.ppu_reg.v = v;
 			ImGui::InputScalar("ppuscrollX", ImGuiDataType_U8, &cpu_mem.ppu_reg.ppuscrollX, 0, 0, "%02x");
 			ImGui::InputScalar("ppuscrollY", ImGuiDataType_U8, &cpu_mem.ppu_reg.ppuscrollY, 0, 0, "%02x");
 
