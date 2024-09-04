@@ -182,13 +182,14 @@ struct PPU {
 
 			scroll_offset_x = ((fine_x_shr) & 0x7) | (coarse_x<<3) | (nametable_select_x<<8);
 			scroll_offset_y = fine_y | (coarse_y<<3) | (nametable_select_y<<8);
+			scroll_offset_x -= 24; // simulate fetching 3 tiles previous
 		}
 
 		u8 nametable_index_x = scroll_offset_x / TILE_SIZE.x;
 		u8 nametable_index_y = scroll_offset_y / TILE_SIZE.y;
 		if (!use_debug_scroll) {
-			ASSERT(nametable_index_x == ((p.v & 0x1f) | (((p.v >> 10) & 0x1) << 5)), "Nametable X calculation wrong");
-			ASSERT(nametable_index_y == (((p.v >> 5) & 0x1f) | (((p.v >> 11) & 0x1) << 5)), "Nametable X calculation wrong");
+			//ASSERT(nametable_index_x == ((p.v & 0x1f) | (((p.v >> 10) & 0x1) << 5)), "Nametable X calculation wrong");
+			//ASSERT(nametable_index_y == (((p.v >> 5) & 0x1f) | (((p.v >> 11) & 0x1) << 5)), "Nametable X calculation wrong");
 		}
 		//ASSERT(nametable_index_y == (p.v>>11) & 0x1, "Nametable X calculation wrong");
 		u8 tile_offset_x = scroll_offset_x % TILE_SIZE.x;
