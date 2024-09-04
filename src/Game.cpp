@@ -121,6 +121,7 @@ struct App : Application {
 	}
 
 	void single_cycle() {
+
 		nes.tick();
 		++cycle_count;
 
@@ -135,25 +136,24 @@ struct App : Application {
 		}
 
 		if (nes.cpu.fetching) {
+			add_ins_history_entry();
 			executing_addr = nes.cpu.pc;
 			++instruction_count;
+
+			if (ins_metadata[executing_addr].breakpoint) {
+				single_step_debugging = true;
+			}
+			if (break_on_opcode && nes.mem.read(executing_addr, nes.ppu_mem) == break_opcode) {
+				single_step_debugging = true;
+			}
 		}
 	}
 
 	void single_step() {
-		add_ins_history_entry();
-
 		// Execute until the next instruction is fetched
 		do {
 			single_cycle();
 		} while (!nes.cpu.fetching);
-
-		if (ins_metadata[executing_addr].breakpoint) {
-			single_step_debugging = true;
-		}
-		if (break_on_opcode && nes.mem.read(executing_addr, nes.ppu_mem) == break_opcode) {
-			single_step_debugging = true;
-		}
 	}
 
 	void tick(float deltaTime) override {
@@ -162,7 +162,7 @@ struct App : Application {
 		for (int i = 0; i < ticks_per_frame; ++i) {
 			if (single_step_debugging)
 				return;
-			single_step();
+			single_cycle();
 		}
 	}
 
